@@ -23,7 +23,6 @@ Próxima tarefa: Autenticação (Neon Auth / Better Auth) + filtro da fila por u
 - Postgres: C:\Users\Alcatoo\claude-skills\postgres-standards\SKILL.md
 - UX/UI: C:\Users\Alcatoo\claude-skills\ux-ui-base\SKILL.md
 - Shadcn Studio: C:\Users\Alcatoo\claude-skills\shadcn-studio\SKILL.md
--
 
 ---
 
