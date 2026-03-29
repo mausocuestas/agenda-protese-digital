@@ -10,6 +10,10 @@ const baseURL =
     ? window.location.origin
     : 'http://localhost:5173'
 
-export const authClient = createAuthClient({ baseURL })
+export const authClient = createAuthClient({
+  baseURL,
+  // Deve bater com o basePath configurado no servidor (neon.ts)
+  basePath: '/auth',
+})
 
 export const { signIn, signOut, useSession } = authClient

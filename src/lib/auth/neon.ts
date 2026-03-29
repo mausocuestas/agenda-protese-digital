@@ -9,6 +9,8 @@ import { authUser, authSession, authAccount, authVerification } from '$lib/serve
 
 export const auth = betterAuth({
   secret: BETTER_AUTH_SECRET,
+  // Nossa rota handler está em /auth/[...all], não no padrão /api/auth
+  basePath: '/auth',
 
   database: drizzleAdapter(db, {
     provider: 'pg',

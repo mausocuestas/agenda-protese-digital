@@ -1,14 +1,25 @@
 <script lang="ts">
+  import { authClient } from '$lib/auth/client'
+
   let { data } = $props()
 
   const errorMessages: Record<string, string> = {
     'nao-autorizado': 'Seu email não está cadastrado no sistema. Solicite acesso ao coordenador.',
   }
 
-  // $derived garante reatividade caso data mude (ex: navegação)
   const errorMsg = $derived(
     data.erro ? (errorMessages[data.erro] ?? 'Erro ao fazer login.') : null
   )
+
+  async function loginWithGoogle() {
+    if (data.provider === 'neon') {
+      // Better Auth — inicia fluxo OAuth via POST /auth/sign-in/social
+      await authClient.signIn.social({ provider: 'google', callbackURL: '/fila' })
+    } else {
+      // Auth.js — redireciona para /auth/signin/google
+      window.location.href = '/auth/signin/google'
+    }
+  }
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-slate-50">
@@ -27,27 +38,13 @@
     {/if}
 
     <!-- Botão de login -->
-    {#if data.provider === 'neon'}
-      <!-- Better Auth — GET para /auth/sign-in/social -->
-      <a
-        href="/auth/sign-in/social/google"
-        class="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-      >
-        <GoogleIcon />
-        Entrar com Google
-      </a>
-    {:else}
-      <!-- Auth.js — POST para /auth/signin/google -->
-      <form method="POST" action="/auth/signin/google">
-        <button
-          type="submit"
-          class="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-        >
-          <GoogleIcon />
-          Entrar com Google
-        </button>
-      </form>
-    {/if}
+    <button
+      onclick={loginWithGoogle}
+      class="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+    >
+      {@render GoogleIcon()}
+      Entrar com Google
+    </button>
 
     <p class="text-center text-xs text-slate-400">
       Acesso restrito a servidores cadastrados
@@ -55,7 +52,6 @@
   </div>
 </div>
 
-<!-- Ícone do Google inline para evitar dependência de lib de ícones -->
 {#snippet GoogleIcon()}
   <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
