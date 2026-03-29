@@ -206,9 +206,12 @@
             <li class="px-5 py-4">
               <div class="flex items-start justify-between gap-4">
                 <div>
-                  <p class="font-medium text-gray-900">
+                  <a
+                    href="/fila/{data.referral.id}/consulta/{appt.id}"
+                    class="font-medium text-gray-900 hover:underline"
+                  >
                     {appointmentLabel[appt.appointmentNumber] ?? `Consulta ${appt.appointmentNumber}`}
-                  </p>
+                  </a>
                   <p class="mt-0.5 text-sm text-gray-500">
                     {fmtDate(appt.scheduledDate)} às {fmtTime(appt.scheduledTime)} — {appt.unitName}
                   </p>
@@ -222,7 +225,12 @@
                       {outcomeLabel[appt.outcome]}
                     </span>
                   {:else}
-                    <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500">Agendada</span>
+                    <a
+                      href="/fila/{data.referral.id}/consulta/{appt.id}"
+                      class="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-500 hover:bg-gray-200"
+                    >
+                      Registrar resultado →
+                    </a>
                   {/if}
                   {#if appt.prosthesisReadyAt}
                     <span class="text-xs text-gray-400">Prótese pronta: {fmtDateTime(appt.prosthesisReadyAt)}</span>
