@@ -230,3 +230,11 @@ Tipos válidos: `feat` · `fix` · `chore` · `refactor` · `docs` · `test` · 
 - Soft delete: filtrar sempre com `.where(isNull(tabela.deletedAt))`
 - Neon + OAuth: usar `127.0.0.1` no redirect URI em dev, não `localhost`
 - pnpm com `engine-strict=true`: versão local do Node precisa bater com `engines`
+
+### Better Auth (Neon Auth)
+
+- **Sem schema `public`** neste banco Neon → criar schema explícito (`auth`, `protese`, etc.) antes de qualquer `CREATE TABLE`
+- **`basePath` obrigatório**: se a rota handler está em `/auth/[...all]`, configurar `basePath: '/auth'` no servidor (`betterAuth({...})`) E no cliente (`createAuthClient({...})`) — o padrão do Better Auth é `/api/auth`
+- **Login social é POST, não GET**: usar `authClient.signIn.social({ provider: 'google', callbackURL: '/destino' })` — link direto para `/auth/sign-in/social/google` retorna 404
+- **`@auth/sveltekit` v1**: retorna `{ handle, signIn, signOut }` — sem `handlers`. Sessão via `event.locals.auth()`, não `event.locals.session`
+- **Callback URI em dev**: `http://127.0.0.1:5173/auth/callback/google` (não `localhost`)
