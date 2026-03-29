@@ -21,6 +21,11 @@
       label: 'Minha Agenda',
       roles: ['third_party'],
     },
+    {
+      href: '/configuracoes',
+      label: 'Configurações',
+      roles: ['coordinator'],
+    },
   ]
 
   const roleLabel: Record<string, string> = {
