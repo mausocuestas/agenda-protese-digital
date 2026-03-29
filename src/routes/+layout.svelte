@@ -17,6 +17,11 @@
       roles: ['attendant', 'coordinator', 'third_party'],
     },
     {
+      href: '/custodia',
+      label: 'Custódia de Próteses',
+      roles: ['attendant', 'coordinator', 'third_party'],
+    },
+    {
       href: '/minha-agenda',
       label: 'Minha Agenda',
       roles: ['third_party'],
