@@ -22,6 +22,11 @@
       roles: ['attendant', 'coordinator', 'third_party'],
     },
     {
+      href: '/qualidade',
+      label: 'Qualidade Pós-Entrega',
+      roles: ['dentist', 'attendant', 'coordinator'],
+    },
+    {
       href: '/minha-agenda',
       label: 'Minha Agenda',
       roles: ['third_party'],
