@@ -1,0 +1,21 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente — NUNCA comitar
+.env
+.env.local
+.env*.local
+
+# Build e cache
+.svelte-kit/
+.vercel/
+dist/
+build/
+
+# Editor
+.vscode/settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

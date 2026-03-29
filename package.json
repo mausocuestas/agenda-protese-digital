@@ -1,0 +1,41 @@
+{
+  "name": "agenda-protese-digital",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-vercel": "^6.3.3",
+    "@sveltejs/kit": "^2.55.0",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@tailwindcss/vite": "^4.2.2",
+    "drizzle-kit": "^0.31.10",
+    "svelte": "^5.55.0",
+    "svelte-check": "^4.4.5",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.3"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "bits-ui": "^2.16.4",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.2",
+    "lucide-svelte": "^1.0.1",
+    "tailwind-merge": "^3.5.0"
+  }
+}
