@@ -4,6 +4,10 @@
 
   let { data }: { data: PageData } = $props()
 
+  const canSchedule =
+    (data.user?.role === 'attendant' || data.user?.role === 'coordinator') &&
+    data.referral.status === 'active'
+
   // Formata data ISO para dd/mm/aaaa
   function fmtDate(iso: string): string {
     const [y, m, d] = iso.substring(0, 10).split('-')
@@ -77,9 +81,19 @@
         ← Voltar para a fila
       </a>
       <div class="h-5 w-px bg-gray-200"></div>
-      <div>
-        <h1 class="text-lg font-semibold text-gray-900">{data.patient.fullName}</h1>
-        <p class="text-sm text-gray-500">{data.referral.unitName}</p>
+      <div class="flex flex-1 items-center justify-between">
+        <div>
+          <h1 class="text-lg font-semibold text-gray-900">{data.patient.fullName}</h1>
+          <p class="text-sm text-gray-500">{data.referral.unitName}</p>
+        </div>
+        {#if canSchedule}
+          <a
+            href="/fila/{data.referral.id}/agendar"
+            class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+          >
+            + Agendar consulta
+          </a>
+        {/if}
       </div>
     </div>
   </header>
