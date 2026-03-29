@@ -96,7 +96,7 @@
       </thead>
       <tbody>
         {#each filtered as item (item.id)}
-          <tr class="border-b border-gray-100 hover:bg-gray-50">
+          <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onclick={() => location.href = `/fila/${item.id}`}>
             <!-- Flags de prioridade -->
             <td class="px-4 py-3">
               <div class="flex gap-1">
