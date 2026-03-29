@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types'
   import { formatQueueTime } from '$lib/utils'
+  import { goto } from '$app/navigation'
 
   let { data }: { data: PageData } = $props()
 
@@ -22,6 +23,12 @@
     active: 'bg-green-100 text-green-800',
     pending_reassessment: 'bg-yellow-100 text-yellow-800',
   }
+
+  // Navega com query param ao selecionar unidade (apenas coordenador)
+  function handleUnitChange(e: Event) {
+    const value = (e.target as HTMLSelectElement).value
+    goto(value ? `/fila?unit=${value}` : '/fila')
+  }
 </script>
 
 <div class="min-h-screen bg-gray-50">
@@ -29,22 +36,37 @@
   <header class="border-b border-gray-200 bg-white px-6 py-4">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-lg font-semibold text-gray-900">Fila de Encaminhamentos</h1>
+        <h1 class="text-lg font-semibold text-gray-900">{data.activeUnitName}</h1>
         <p class="text-sm text-gray-500">{filtered.length} paciente{filtered.length !== 1 ? 's' : ''} na fila</p>
       </div>
 
-      <!-- Filtro de status -->
-      <div class="flex gap-1 rounded-lg bg-gray-100 p-1">
-        {#each (['all', 'active', 'pending_reassessment'] as const) as opt}
-          <button
-            class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {statusFilter === opt
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'}"
-            onclick={() => (statusFilter = opt)}
+      <div class="flex items-center gap-3">
+        <!-- Seletor de unidade — apenas para coordenador -->
+        {#if data.isCoordinator}
+          <select
+            class="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm focus:border-gray-400 focus:outline-none"
+            onchange={handleUnitChange}
           >
-            {opt === 'all' ? 'Todos' : statusLabel[opt]}
-          </button>
-        {/each}
+            <option value="" selected={data.activeUnitId === null}>Todas as unidades</option>
+            {#each data.units as unit (unit.id)}
+              <option value={unit.id} selected={unit.id === data.activeUnitId}>{unit.name}</option>
+            {/each}
+          </select>
+        {/if}
+
+        <!-- Filtro de status -->
+        <div class="flex gap-1 rounded-lg bg-gray-100 p-1">
+          {#each (['all', 'active', 'pending_reassessment'] as const) as opt}
+            <button
+              class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {statusFilter === opt
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'}"
+              onclick={() => (statusFilter = opt)}
+            >
+              {opt === 'all' ? 'Todos' : statusLabel[opt]}
+            </button>
+          {/each}
+        </div>
       </div>
     </div>
   </header>
