@@ -8,10 +8,11 @@
 ## Projeto Atual
 
 ```
-Nome:        [agenda-protese-digital]
-Objetivo:    [descrição em 1–2 frases]
-Status:      [ex: setup inicial / em desenvolvimento / manutenção]
-Próxima tarefa: [ex: criar schema do banco / implementar tela X]
+Nome:        agenda-protese-digital
+Objetivo:    Sistema digital de gerenciamento do fluxo de próteses dentárias
+             da Secretaria de Saúde de Atibaia/SP — da triagem ao pós-entrega.
+Status:      Em desenvolvimento — setup completo, primeira tela implementada
+Próxima tarefa: Autenticação (Neon Auth / Better Auth) + filtro da fila por unidade
 ```
 
 ---
