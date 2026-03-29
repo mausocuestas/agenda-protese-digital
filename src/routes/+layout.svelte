@@ -16,6 +16,11 @@
       label: 'Agenda do Protético',
       roles: ['attendant', 'coordinator', 'third_party'],
     },
+    {
+      href: '/minha-agenda',
+      label: 'Minha Agenda',
+      roles: ['third_party'],
+    },
   ]
 
   const roleLabel: Record<string, string> = {
