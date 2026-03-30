@@ -35,12 +35,14 @@
         type: 'bar',
         data: data.referralsByMonth,
         itemStyle: { color: '#3b82f6', borderRadius: [3, 3, 0, 0] },
+        label: { show: true, position: 'top', fontSize: 11, color: '#374151' },
       },
       {
         name: 'Entregas',
         type: 'bar',
         data: data.deliveriesByMonth,
         itemStyle: { color: '#22c55e', borderRadius: [3, 3, 0, 0] },
+        label: { show: true, position: 'top', fontSize: 11, color: '#374151' },
       },
     ],
   })
