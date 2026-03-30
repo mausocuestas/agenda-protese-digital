@@ -8,7 +8,18 @@ import {
   coordinationApprovals,
   satisfactionCalls,
 } from '$lib/server/db/index'
-import { and, eq, isNull, isNotNull, inArray, gte, count } from 'drizzle-orm'
+import { and, eq, isNull, isNotNull, inArray, gte, count, sql } from 'drizzle-orm'
+
+// Gera os últimos N meses em formato YYYY-MM, do mais antigo ao mais recente
+function lastMonths(n: number): string[] {
+  const result: string[] = []
+  const now = new Date()
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    result.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+  return result
+}
 
 export const load: PageServerLoad = async ({ locals }) => {
   const user = locals.user
@@ -126,6 +137,55 @@ export const load: PageServerLoad = async ({ locals }) => {
     pendingUnitAppointmentsCount = Number(row?.count ?? 0)
   }
 
+  // ── Gráficos históricos (últimos 6 meses) — visíveis apenas para coordinator ──
+  const chartMonths = lastMonths(6)
+
+  // Data de corte: 1º dia de 6 meses atrás
+  const sixMonthsAgo = (() => {
+    const d = new Date()
+    d.setMonth(d.getMonth() - 6)
+    d.setDate(1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+  })()
+
+  // Encaminhamentos abertos por mês (introductionDate)
+  const referralsByMonthRaw = await db
+    .select({
+      month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${referrals.introductionDate}::date), 'YYYY-MM')`,
+      count: count(),
+    })
+    .from(referrals)
+    .where(and(isNull(referrals.deletedAt), gte(referrals.introductionDate, sixMonthsAgo)))
+    .groupBy(sql`DATE_TRUNC('month', ${referrals.introductionDate}::date)`)
+    .orderBy(sql`DATE_TRUNC('month', ${referrals.introductionDate}::date)`)
+
+  // Entregas realizadas por mês (4ª consulta attended)
+  const deliveriesByMonthRaw = await db
+    .select({
+      month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${appointments.scheduledDate}::date), 'YYYY-MM')`,
+      count: count(),
+    })
+    .from(appointments)
+    .where(
+      and(
+        eq(appointments.appointmentNumber, 4),
+        eq(appointments.outcome, 'attended'),
+        gte(appointments.scheduledDate, sixMonthsAgo)
+      )
+    )
+    .groupBy(sql`DATE_TRUNC('month', ${appointments.scheduledDate}::date)`)
+    .orderBy(sql`DATE_TRUNC('month', ${appointments.scheduledDate}::date)`)
+
+  // Garante que todos os meses do intervalo aparecem no array (zeros incluídos)
+  const referralsByMonth = chartMonths.map((m) => {
+    const found = referralsByMonthRaw.find((r) => r.month === m)
+    return Number(found?.count ?? 0)
+  })
+  const deliveriesByMonth = chartMonths.map((m) => {
+    const found = deliveriesByMonthRaw.find((r) => r.month === m)
+    return Number(found?.count ?? 0)
+  })
+
   return {
     canSeeFila,
     canSeeAwaitingReady,
@@ -140,5 +200,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     awaitingApprovalCount,
     awaitingSatisfactionCount,
     pendingUnitAppointmentsCount,
+    chartMonths,
+    referralsByMonth,
+    deliveriesByMonth,
   }
 }

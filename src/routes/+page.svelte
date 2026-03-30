@@ -1,7 +1,49 @@
 <script lang="ts">
   import type { PageData } from './$types'
+  import EChart from '$lib/components/echart.svelte'
+  import type { EChartsOption } from 'echarts'
 
   let { data }: { data: PageData } = $props()
+
+  // Formata YYYY-MM para exibição abreviada (ex: "Mar/26")
+  function formatMonth(ym: string): string {
+    const [year, month] = ym.split('-')
+    const names = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    return `${names[Number(month) - 1]}/${String(year).slice(2)}`
+  }
+
+  const volumeChartOption = $derived<EChartsOption>({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['Encaminhamentos', 'Entregas'], bottom: 0 },
+    grid: { left: 32, right: 16, top: 16, bottom: 40 },
+    xAxis: {
+      type: 'category',
+      data: data.chartMonths.map(formatMonth),
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#6b7280', fontSize: 11 },
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      splitLine: { lineStyle: { color: '#f3f4f6' } },
+      axisLabel: { color: '#6b7280', fontSize: 11 },
+    },
+    series: [
+      {
+        name: 'Encaminhamentos',
+        type: 'bar',
+        data: data.referralsByMonth,
+        itemStyle: { color: '#3b82f6', borderRadius: [3, 3, 0, 0] },
+      },
+      {
+        name: 'Entregas',
+        type: 'bar',
+        data: data.deliveriesByMonth,
+        itemStyle: { color: '#22c55e', borderRadius: [3, 3, 0, 0] },
+      },
+    ],
+  })
 
   // Grupos de métricas organizados por etapa do fluxo
   const filaCards = $derived([
@@ -146,4 +188,17 @@
       </div>
     </section>
   {/if}
+
+  <!-- Gráficos históricos — últimos 6 meses -->
+  <section>
+    <h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+      Histórico — últimos 6 meses
+    </h2>
+    <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+      <p class="mb-4 text-sm font-medium text-gray-700">Encaminhamentos abertos vs. entregas</p>
+      <div class="h-56">
+        <EChart option={volumeChartOption} />
+      </div>
+    </div>
+  </section>
 </div>

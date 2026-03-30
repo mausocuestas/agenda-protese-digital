@@ -1,8 +1,15 @@
 <script lang="ts">
   import '../app.css'
   import { page } from '$app/state'
+  import { goto } from '$app/navigation'
+  import { authClient } from '$lib/auth/client'
 
   let { data, children } = $props()
+
+  async function handleSignOut() {
+    await authClient.signOut()
+    goto('/login')
+  }
 
   // Itens de navegação com controle de acesso por role
   const navItems = [
@@ -89,12 +96,12 @@
           {data.user.name ?? data.user.email}
         </p>
         <p class="text-xs text-gray-400">{roleLabel[data.user.role] ?? data.user.role}</p>
-        <a
-          href="/auth/sign-out"
+        <button
+          onclick={handleSignOut}
           class="mt-2 block text-xs text-gray-400 transition-colors hover:text-gray-600"
         >
           Sair
-        </a>
+        </button>
       </div>
     </aside>
 
