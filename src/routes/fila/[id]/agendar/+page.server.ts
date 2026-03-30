@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types'
 import { redirect, error, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { appointments, thirdPartySchedules } from '$lib/server/db/index'
-import { eq, isNull } from 'drizzle-orm'
+import { appointments, thirdPartySchedules, referrals, patients } from '$lib/server/db/index'
+import { eq, isNull, inArray, asc } from 'drizzle-orm'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const user = locals.user
@@ -48,6 +48,37 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     orderBy: (s, { asc }) => [asc(s.scheduledDate)],
   })
 
+  // Carrega pacientes já agendados em cada data — evita conflito de horário
+  type ApptSlot = { scheduledTime: string; patientName: string; appointmentNumber: number }
+  const apptsByKey: Record<string, ApptSlot[]> = {}
+
+  if (schedulesWithUnit.length > 0) {
+    const dates = [...new Set(schedulesWithUnit.map((s) => s.scheduledDate))]
+    const booked = await db
+      .select({
+        scheduledDate: appointments.scheduledDate,
+        healthUnitId: appointments.healthUnitId,
+        scheduledTime: appointments.scheduledTime,
+        appointmentNumber: appointments.appointmentNumber,
+        patientName: patients.fullName,
+      })
+      .from(appointments)
+      .innerJoin(referrals, eq(appointments.referralId, referrals.id))
+      .innerJoin(patients, eq(referrals.patientId, patients.id))
+      .where(inArray(appointments.scheduledDate, dates))
+      .orderBy(asc(appointments.scheduledTime))
+
+    for (const row of booked) {
+      const key = `${row.scheduledDate}__${row.healthUnitId}`
+      if (!apptsByKey[key]) apptsByKey[key] = []
+      apptsByKey[key].push({
+        scheduledTime: row.scheduledTime,
+        patientName: row.patientName,
+        appointmentNumber: row.appointmentNumber,
+      })
+    }
+  }
+
   return {
     referralId,
     patientName: referral.patient.fullName,
@@ -60,6 +91,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       endTime: s.endTime,
       unitId: s.healthUnitId,
       unitName: s.healthUnit.estabelecimento,
+      slots: apptsByKey[`${s.scheduledDate}__${s.healthUnitId}`] ?? [],
     })),
   }
 }

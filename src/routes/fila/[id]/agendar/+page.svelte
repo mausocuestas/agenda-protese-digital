@@ -11,12 +11,19 @@
     4: 'Entrega definitiva',
   }
 
-  // Agenda selecionada — controla a janela de horário exibida
+  // Agenda selecionada — controla a janela de horário e a lista de já agendados
   let selectedScheduleId = $state<string>('')
 
   let selectedSchedule = $derived(
     data.schedules.find((s) => s.id === parseInt(selectedScheduleId))
   )
+
+  const apptLabel: Record<number, string> = {
+    1: 'Escaneamento',
+    2: '1º Ajuste',
+    3: '2º Ajuste',
+    4: 'Entrega',
+  }
 
   function fmtDate(iso: string): string {
     const [y, m, d] = iso.split('-')
@@ -97,6 +104,30 @@
             {/each}
           </select>
         </div>
+
+        <!-- Pacientes já agendados nesta data — aparece ao selecionar uma data -->
+        {#if selectedSchedule}
+          <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
+            <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
+              Pacientes já agendados nesta data
+            </p>
+            {#if selectedSchedule.slots.length === 0}
+              <p class="text-sm text-amber-600">Nenhum paciente agendado ainda.</p>
+            {:else}
+              <ul class="space-y-1">
+                {#each selectedSchedule.slots as slot}
+                  <li class="flex items-center gap-2 text-sm">
+                    <span class="w-10 shrink-0 font-mono text-amber-800">{fmtTime(slot.scheduledTime)}</span>
+                    <span class="text-amber-900">{slot.patientName}</span>
+                    <span class="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
+                      {apptLabel[slot.appointmentNumber] ?? `Consulta ${slot.appointmentNumber}`}
+                    </span>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
+        {/if}
 
         <!-- Horário -->
         <div>
