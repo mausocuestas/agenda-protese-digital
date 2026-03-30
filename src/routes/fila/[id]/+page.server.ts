@@ -1,8 +1,9 @@
-import type { PageServerLoad } from './$types'
-import { redirect, error } from '@sveltejs/kit'
+import type { PageServerLoad, Actions } from './$types'
+import { redirect, error, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { isNull } from 'drizzle-orm'
+import { eq, isNull } from 'drizzle-orm'
 import { calcAge, daysSince } from '$lib/utils'
+import { patients, referrals, estabelecimentos } from '$lib/server/db/index'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const user = locals.user
@@ -41,7 +42,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const age = calcAge(row.patient.birthDate)
   const daysInQueue = daysSince(row.introductionDate)
 
+  // Lista de unidades ativas — usada no select de edição de dados do paciente
+  const units = await db
+    .select({ id: estabelecimentos.id, name: estabelecimentos.estabelecimento })
+    .from(estabelecimentos)
+    .where(eq(estabelecimentos.isActive, true))
+    .orderBy(estabelecimentos.estabelecimento)
+
+  const canEditPatient = ['coordinator', 'attendant', 'dentist'].includes(user.role)
+
   return {
+    canEditPatient,
+    units,
     referral: {
       id: row.id,
       status: row.status,
@@ -65,6 +77,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       age,
       isElderly: age >= 60,
       phone: row.patient.phone,
+      healthUnitId: row.patient.healthUnitId,
     },
     notes: row.notes.map((n) => ({
       id: n.id,
@@ -84,4 +97,56 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       prosthesisReceivedAt: a.prosthesisReceivedAt?.toISOString() ?? null,
     })),
   }
+}
+
+export const actions: Actions = {
+  // Atualiza dados cadastrais do paciente — disponível para coordinator, attendant e dentist
+  update_patient: async ({ locals, params, request }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+
+    const allowedRoles = ['coordinator', 'attendant', 'dentist']
+    if (!allowedRoles.includes(user.role)) return fail(403, { error: 'Sem permissão' })
+
+    const referralId = parseInt(params.id, 10)
+    if (isNaN(referralId)) return fail(400, { error: 'ID inválido' })
+
+    const data = await request.formData()
+    const fullName = (data.get('fullName') as string)?.trim()
+    const birthDate = data.get('birthDate') as string
+    const phone = (data.get('phone') as string)?.trim()
+    const healthUnitId = parseInt(data.get('healthUnitId') as string, 10)
+
+    if (!fullName || !birthDate || !phone || !healthUnitId) {
+      return fail(400, { error: 'Preencha todos os campos obrigatórios' })
+    }
+
+    // Busca o encaminhamento para obter o patientId e validar acesso
+    const referral = await db.query.referrals.findFirst({
+      where: (r, { and, eq: eqFn }) => and(eqFn(r.id, referralId), isNull(r.deletedAt)),
+    })
+
+    if (!referral) return fail(404, { error: 'Encaminhamento não encontrado' })
+
+    // Não-coordenador só pode editar pacientes da sua unidade
+    if (user.role !== 'coordinator' && referral.healthUnitId !== user.defaultUnitId) {
+      return fail(403, { error: 'Acesso negado' })
+    }
+
+    // Atualiza dados do paciente
+    await db
+      .update(patients)
+      .set({ fullName, birthDate, phone, healthUnitId, updatedAt: new Date() })
+      .where(eq(patients.id, referral.patientId))
+
+    // Se a unidade mudou, atualiza também o encaminhamento
+    if (healthUnitId !== referral.healthUnitId) {
+      await db
+        .update(referrals)
+        .set({ healthUnitId, updatedAt: new Date() })
+        .where(eq(referrals.id, referralId))
+    }
+
+    return { updateSuccess: true }
+  },
 }

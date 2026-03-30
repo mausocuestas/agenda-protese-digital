@@ -5,10 +5,17 @@
   let { data, form }: { data: PageData; form: ActionData } = $props()
 
   let showForm = $state(false)
+  // ID da visita sendo editada no momento (null = nenhuma)
+  let editingScheduleId = $state<number | null>(null)
 
-  // Fecha o formulário após criação bem-sucedida
+  // Fecha formulário de criação após sucesso
   $effect(() => {
     if (form && 'success' in form && form.success) showForm = false
+  })
+
+  // Fecha edição inline após salvar com sucesso
+  $effect(() => {
+    if (form && 'editSuccess' in form && form.editSuccess) editingScheduleId = null
   })
 
   // "2026-04-15" → "15/04/2026"
@@ -151,6 +158,7 @@
       </thead>
       <tbody>
         {#each data.schedules as schedule (schedule.id)}
+          <!-- Linha principal da visita -->
           <tr class="border-b border-gray-100 hover:bg-gray-50 align-top">
             <td class="px-4 py-3 font-medium text-gray-900">{formatDate(schedule.scheduledDate)}</td>
             <td class="px-4 py-3 text-gray-700">{schedule.unitName}</td>
@@ -175,6 +183,20 @@
                           <span class="rounded px-1.5 py-0.5 text-xs font-medium {outcomeClass[slot.outcome] ?? ''}">
                             {slot.outcome === 'attended' ? 'Compareceu' : slot.outcome === 'absent' ? 'Faltou' : 'Recusado'}
                           </span>
+                        {:else if data.canRemoveAppointment}
+                          <!-- Botão desmarcar — só aparece se não há desfecho registrado -->
+                          <form method="POST" action="?/remove_appointment" use:enhance class="inline">
+                            <input type="hidden" name="id" value={slot.id} />
+                            <button
+                              type="submit"
+                              class="text-xs text-red-400 transition-colors hover:text-red-600"
+                              onclick={(e) => {
+                                if (!confirm(`Desmarcar ${slot.patientName}?`)) e.preventDefault()
+                              }}
+                            >
+                              × Desmarcar
+                            </button>
+                          </form>
                         {/if}
                       </li>
                     {/each}
@@ -185,21 +207,91 @@
 
             {#if data.isCoordinator}
               <td class="px-4 py-3 text-right">
-                <form method="POST" action="?/delete" use:enhance>
-                  <input type="hidden" name="id" value={schedule.id} />
+                <div class="flex items-center justify-end gap-3">
+                  <!-- Botão editar horário -->
                   <button
-                    type="submit"
-                    class="text-xs text-red-500 transition-colors hover:text-red-700"
-                    onclick={(e) => {
-                      if (!confirm('Remover essa visita?')) e.preventDefault()
-                    }}
+                    onclick={() => (editingScheduleId = editingScheduleId === schedule.id ? null : schedule.id)}
+                    class="text-xs text-blue-500 transition-colors hover:text-blue-700"
                   >
-                    Remover
+                    {editingScheduleId === schedule.id ? 'Cancelar' : 'Editar'}
                   </button>
-                </form>
+                  <!-- Botão remover visita -->
+                  <form method="POST" action="?/delete" use:enhance>
+                    <input type="hidden" name="id" value={schedule.id} />
+                    <button
+                      type="submit"
+                      class="text-xs text-red-500 transition-colors hover:text-red-700"
+                      onclick={(e) => {
+                        if (!confirm('Remover essa visita?')) e.preventDefault()
+                      }}
+                    >
+                      Remover
+                    </button>
+                  </form>
+                </div>
               </td>
             {/if}
           </tr>
+
+          <!-- Linha de edição inline — só aparece quando este schedule está sendo editado -->
+          {#if data.canEditSchedule && editingScheduleId === schedule.id}
+            <tr class="border-b border-blue-100 bg-blue-50">
+              <td colspan={data.canSeePatients ? 5 : 4} class="px-4 py-3">
+                <form
+                  method="POST"
+                  action="?/edit_schedule"
+                  use:enhance
+                  class="flex flex-wrap items-end gap-4"
+                >
+                  <input type="hidden" name="id" value={schedule.id} />
+
+                  <div class="flex flex-col gap-1">
+                    <label class="text-xs font-medium text-gray-600">Data</label>
+                    <input
+                      name="scheduledDate"
+                      type="date"
+                      required
+                      value={schedule.scheduledDate}
+                      class="rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div class="flex flex-col gap-1">
+                    <label class="text-xs font-medium text-gray-600">Início</label>
+                    <input
+                      name="startTime"
+                      type="time"
+                      required
+                      value={formatTime(schedule.startTime)}
+                      class="rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div class="flex flex-col gap-1">
+                    <label class="text-xs font-medium text-gray-600">Término</label>
+                    <input
+                      name="endTime"
+                      type="time"
+                      required
+                      value={formatTime(schedule.endTime)}
+                      class="rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    class="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                  >
+                    Salvar
+                  </button>
+
+                  {#if form && 'error' in form && form.error}
+                    <p class="text-sm text-red-600">{form.error}</p>
+                  {/if}
+                </form>
+              </td>
+            </tr>
+          {/if}
         {:else}
           <tr>
             <td

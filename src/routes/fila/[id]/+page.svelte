@@ -1,12 +1,21 @@
 <script lang="ts">
-  import type { PageData } from './$types'
+  import type { PageData, ActionData } from './$types'
   import { formatQueueTime } from '$lib/utils'
+  import { enhance } from '$app/forms'
 
-  let { data }: { data: PageData } = $props()
+  let { data, form }: { data: PageData; form: ActionData } = $props()
 
   const canSchedule =
     (data.user?.role === 'attendant' || data.user?.role === 'coordinator') &&
     data.referral.status === 'active'
+
+  // Controla exibição do formulário de edição de dados do paciente
+  let editingPatient = $state(false)
+
+  // Fecha o formulário após salvar com sucesso
+  $effect(() => {
+    if (form && 'updateSuccess' in form && form.updateSuccess) editingPatient = false
+  })
 
   // Formata data ISO para dd/mm/aaaa
   function fmtDate(iso: string): string {
@@ -120,27 +129,111 @@
 
     <!-- Dados do paciente -->
     <section class="rounded-lg border border-gray-200 bg-white">
-      <div class="border-b border-gray-100 px-5 py-3">
+      <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Dados do paciente</h2>
+        {#if data.canEditPatient}
+          <button
+            onclick={() => (editingPatient = !editingPatient)}
+            class="text-xs text-blue-600 hover:text-blue-800"
+          >
+            {editingPatient ? 'Cancelar' : 'Editar dados'}
+          </button>
+        {/if}
       </div>
-      <dl class="grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-4">
-        <div>
-          <dt class="text-xs text-gray-500">Nome completo</dt>
-          <dd class="mt-0.5 font-medium text-gray-900">{data.patient.fullName}</dd>
-        </div>
-        <div>
-          <dt class="text-xs text-gray-500">CPF</dt>
-          <dd class="mt-0.5 font-mono text-gray-900">{maskCpf(data.patient.cpf)}</dd>
-        </div>
-        <div>
-          <dt class="text-xs text-gray-500">Data de nascimento</dt>
-          <dd class="mt-0.5 text-gray-900">{fmtDate(data.patient.birthDate)} ({data.patient.age} anos)</dd>
-        </div>
-        <div>
-          <dt class="text-xs text-gray-500">Telefone</dt>
-          <dd class="mt-0.5 text-gray-900">{data.patient.phone}</dd>
-        </div>
-      </dl>
+
+      {#if editingPatient}
+        <!-- Formulário de edição inline -->
+        <form
+          method="POST"
+          action="?/update_patient"
+          use:enhance
+          class="grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-4"
+        >
+          <div class="col-span-2 sm:col-span-2">
+            <label for="fullName" class="text-xs text-gray-500">Nome completo</label>
+            <input
+              id="fullName"
+              name="fullName"
+              type="text"
+              required
+              value={data.patient.fullName}
+              class="mt-0.5 w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-400 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label for="cpf" class="text-xs text-gray-500">CPF</label>
+            <p class="mt-0.5 font-mono text-sm text-gray-400">{maskCpf(data.patient.cpf)}</p>
+          </div>
+          <div>
+            <label for="birthDate" class="text-xs text-gray-500">Data de nascimento</label>
+            <input
+              id="birthDate"
+              name="birthDate"
+              type="date"
+              required
+              value={data.patient.birthDate}
+              class="mt-0.5 w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-400 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label for="phone" class="text-xs text-gray-500">Telefone</label>
+            <input
+              id="phone"
+              name="phone"
+              type="text"
+              required
+              value={data.patient.phone}
+              class="mt-0.5 w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-400 focus:outline-none"
+            />
+          </div>
+          <div class="col-span-2 sm:col-span-2">
+            <label for="healthUnitId" class="text-xs text-gray-500">Unidade de saúde responsável</label>
+            <select
+              id="healthUnitId"
+              name="healthUnitId"
+              required
+              class="mt-0.5 w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-blue-400 focus:outline-none"
+            >
+              {#each data.units as unit (unit.id)}
+                <option value={unit.id} selected={unit.id === data.patient.healthUnitId}>
+                  {unit.name}
+                </option>
+              {/each}
+            </select>
+          </div>
+          <div class="col-span-2 flex items-center gap-3 sm:col-span-4">
+            <button
+              type="submit"
+              class="rounded-md bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
+            >
+              Salvar alterações
+            </button>
+            {#if form && 'error' in form && form.error}
+              <p class="text-sm text-red-600">{form.error}</p>
+            {/if}
+          </div>
+        </form>
+      {:else}
+        <!-- Visualização normal -->
+        <dl class="grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-4">
+          <div>
+            <dt class="text-xs text-gray-500">Nome completo</dt>
+            <dd class="mt-0.5 font-medium text-gray-900">{data.patient.fullName}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-gray-500">CPF</dt>
+            <dd class="mt-0.5 font-mono text-gray-900">{maskCpf(data.patient.cpf)}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-gray-500">Data de nascimento</dt>
+            <dd class="mt-0.5 text-gray-900">{fmtDate(data.patient.birthDate)} ({data.patient.age} anos)</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-gray-500">Telefone</dt>
+            <dd class="mt-0.5 text-gray-900">{data.patient.phone}</dd>
+          </div>
+        </dl>
+      {/if}
     </section>
 
     <!-- Dados do encaminhamento -->

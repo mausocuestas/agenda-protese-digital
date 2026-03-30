@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types'
 import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
 import { thirdPartySchedules, estabelecimentos, appointments, referrals, patients } from '$lib/server/db/index'
-import { eq, asc, inArray } from 'drizzle-orm'
+import { eq, asc, inArray, isNull } from 'drizzle-orm'
 
 export const load: PageServerLoad = async ({ locals }) => {
   const user = locals.user
@@ -28,15 +28,27 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   // Coordenador e atendente veem quais pacientes estão em cada visita
   const canSeePatients = user.role === 'coordinator' || user.role === 'attendant'
+  // Coordenador e atendente podem desmarcar pacientes; coordenador pode editar a visita
+  const canRemoveAppointment = user.role === 'coordinator' || user.role === 'attendant'
+  const canEditSchedule = user.role === 'coordinator'
 
   // Carrega os agendamentos dos pacientes agrupados por data+unidade
-  type ApptSlot = { scheduledTime: string; patientName: string; appointmentNumber: number; outcome: string | null }
+  type ApptSlot = {
+    id: number
+    referralId: number
+    scheduledTime: string
+    patientName: string
+    appointmentNumber: number
+    outcome: string | null
+  }
   const apptsByKey: Record<string, ApptSlot[]> = {}
 
   if (canSeePatients && rawSchedules.length > 0) {
     const dates = [...new Set(rawSchedules.map((s) => s.scheduledDate))]
     const apptRows = await db
       .select({
+        id: appointments.id,
+        referralId: appointments.referralId,
         scheduledDate: appointments.scheduledDate,
         healthUnitId: appointments.healthUnitId,
         scheduledTime: appointments.scheduledTime,
@@ -54,6 +66,8 @@ export const load: PageServerLoad = async ({ locals }) => {
       const key = `${row.scheduledDate}__${row.healthUnitId}`
       if (!apptsByKey[key]) apptsByKey[key] = []
       apptsByKey[key].push({
+        id: row.id,
+        referralId: row.referralId,
         scheduledTime: row.scheduledTime,
         patientName: row.patientName,
         appointmentNumber: row.appointmentNumber,
@@ -82,6 +96,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     units,
     isCoordinator: user.role === 'coordinator',
     canSeePatients,
+    canRemoveAppointment,
+    canEditSchedule,
   }
 }
 
@@ -133,5 +149,62 @@ export const actions: Actions = {
 
     await db.delete(thirdPartySchedules).where(eq(thirdPartySchedules.id, id))
     return { success: true }
+  },
+
+  // Edita data e horários de uma visita do protético — apenas coordenador
+  edit_schedule: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user || user.role !== 'coordinator') return fail(403, { error: 'Sem permissão' })
+
+    const data = await request.formData()
+    const id = parseInt(data.get('id') as string, 10)
+    const scheduledDate = data.get('scheduledDate') as string
+    const startTime = data.get('startTime') as string
+    const endTime = data.get('endTime') as string
+
+    if (!id || !scheduledDate || !startTime || !endTime) {
+      return fail(400, { error: 'Preencha todos os campos' })
+    }
+    if (startTime >= endTime) {
+      return fail(400, { error: 'Horário de início deve ser anterior ao de término' })
+    }
+
+    try {
+      await db
+        .update(thirdPartySchedules)
+        .set({ scheduledDate, startTime, endTime })
+        .where(eq(thirdPartySchedules.id, id))
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message.includes('unique')) {
+        return fail(400, { error: 'Já existe uma visita para essa unidade nessa data' })
+      }
+      return fail(500, { error: 'Erro ao salvar. Tente novamente.' })
+    }
+
+    return { editSuccess: true }
+  },
+
+  // Remove agendamento de um paciente — apenas se ainda não tem desfecho registrado
+  remove_appointment: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user) return fail(401, { error: 'Não autenticado' })
+
+    const allowedRoles = ['coordinator', 'attendant']
+    if (!allowedRoles.includes(user.role)) return fail(403, { error: 'Sem permissão' })
+
+    const data = await request.formData()
+    const id = parseInt(data.get('id') as string, 10)
+    if (!id) return fail(400, { error: 'ID inválido' })
+
+    // Verifica se o agendamento existe e não tem desfecho
+    const appt = await db.query.appointments.findFirst({
+      where: (a, { eq: eqFn }) => eqFn(a.id, id),
+    })
+
+    if (!appt) return fail(404, { error: 'Agendamento não encontrado' })
+    if (appt.outcome) return fail(400, { error: 'Não é possível desmarcar uma consulta com desfecho já registrado' })
+
+    await db.delete(appointments).where(eq(appointments.id, id))
+    return { removeSuccess: true }
   },
 }
