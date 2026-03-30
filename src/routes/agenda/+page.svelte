@@ -21,6 +21,21 @@
   function formatTime(t: string) {
     return t.slice(0, 5)
   }
+
+  // Rótulo da consulta pelo número sequencial
+  const apptLabel: Record<number, string> = {
+    1: 'Escaneamento',
+    2: '1º Ajuste',
+    3: '2º Ajuste',
+    4: 'Entrega',
+  }
+
+  // Classe de badge pelo desfecho registrado
+  const outcomeClass: Record<string, string> = {
+    attended: 'bg-green-100 text-green-700',
+    absent: 'bg-red-100 text-red-700',
+    refused: 'bg-orange-100 text-orange-700',
+  }
 </script>
 
 <div class="min-h-screen bg-gray-50">
@@ -126,6 +141,9 @@
           <th class="px-4 py-3">Data</th>
           <th class="px-4 py-3">Unidade</th>
           <th class="px-4 py-3">Horário</th>
+          {#if data.canSeePatients}
+            <th class="px-4 py-3">Pacientes agendados</th>
+          {/if}
           {#if data.isCoordinator}
             <th class="px-4 py-3"></th>
           {/if}
@@ -133,12 +151,38 @@
       </thead>
       <tbody>
         {#each data.schedules as schedule (schedule.id)}
-          <tr class="border-b border-gray-100 hover:bg-gray-50">
+          <tr class="border-b border-gray-100 hover:bg-gray-50 align-top">
             <td class="px-4 py-3 font-medium text-gray-900">{formatDate(schedule.scheduledDate)}</td>
             <td class="px-4 py-3 text-gray-700">{schedule.unitName}</td>
             <td class="px-4 py-3 text-gray-600">
               {formatTime(schedule.startTime)} – {formatTime(schedule.endTime)}
             </td>
+
+            {#if data.canSeePatients}
+              <td class="px-4 py-3">
+                {#if schedule.slots.length === 0}
+                  <span class="text-xs text-gray-400">Nenhum paciente agendado</span>
+                {:else}
+                  <ul class="space-y-1">
+                    {#each schedule.slots as slot}
+                      <li class="flex items-center gap-2 text-sm">
+                        <span class="w-10 shrink-0 font-mono text-xs text-gray-500">{formatTime(slot.scheduledTime)}</span>
+                        <span class="text-gray-800">{slot.patientName}</span>
+                        <span class="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
+                          {apptLabel[slot.appointmentNumber] ?? `Consulta ${slot.appointmentNumber}`}
+                        </span>
+                        {#if slot.outcome}
+                          <span class="rounded px-1.5 py-0.5 text-xs font-medium {outcomeClass[slot.outcome] ?? ''}">
+                            {slot.outcome === 'attended' ? 'Compareceu' : slot.outcome === 'absent' ? 'Faltou' : 'Recusado'}
+                          </span>
+                        {/if}
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              </td>
+            {/if}
+
             {#if data.isCoordinator}
               <td class="px-4 py-3 text-right">
                 <form method="POST" action="?/delete" use:enhance>
@@ -159,7 +203,7 @@
         {:else}
           <tr>
             <td
-              colspan={data.isCoordinator ? 4 : 3}
+              colspan={data.isCoordinator ? (data.canSeePatients ? 5 : 4) : (data.canSeePatients ? 4 : 3)}
               class="px-4 py-12 text-center text-sm text-gray-400"
             >
               Nenhuma visita cadastrada.

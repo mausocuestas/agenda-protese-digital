@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types'
 import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { thirdPartySchedules, estabelecimentos } from '$lib/server/db/index'
-import { eq, asc } from 'drizzle-orm'
+import { thirdPartySchedules, estabelecimentos, appointments, referrals, patients } from '$lib/server/db/index'
+import { eq, asc, inArray } from 'drizzle-orm'
 
 export const load: PageServerLoad = async ({ locals }) => {
   const user = locals.user
@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   if (!allowedRoles.includes(user.role)) redirect(302, '/fila')
 
   // Todas as visitas (passadas e futuras), ordenadas por data e unidade
-  const schedules = await db
+  const rawSchedules = await db
     .select({
       id: thirdPartySchedules.id,
       scheduledDate: thirdPartySchedules.scheduledDate,
@@ -25,6 +25,47 @@ export const load: PageServerLoad = async ({ locals }) => {
     .from(thirdPartySchedules)
     .innerJoin(estabelecimentos, eq(thirdPartySchedules.healthUnitId, estabelecimentos.id))
     .orderBy(asc(thirdPartySchedules.scheduledDate), asc(estabelecimentos.estabelecimento))
+
+  // Coordenador e atendente veem quais pacientes estão em cada visita
+  const canSeePatients = user.role === 'coordinator' || user.role === 'attendant'
+
+  // Carrega os agendamentos dos pacientes agrupados por data+unidade
+  type ApptSlot = { scheduledTime: string; patientName: string; appointmentNumber: number; outcome: string | null }
+  const apptsByKey: Record<string, ApptSlot[]> = {}
+
+  if (canSeePatients && rawSchedules.length > 0) {
+    const dates = [...new Set(rawSchedules.map((s) => s.scheduledDate))]
+    const apptRows = await db
+      .select({
+        scheduledDate: appointments.scheduledDate,
+        healthUnitId: appointments.healthUnitId,
+        scheduledTime: appointments.scheduledTime,
+        appointmentNumber: appointments.appointmentNumber,
+        patientName: patients.fullName,
+        outcome: appointments.outcome,
+      })
+      .from(appointments)
+      .innerJoin(referrals, eq(appointments.referralId, referrals.id))
+      .innerJoin(patients, eq(referrals.patientId, patients.id))
+      .where(inArray(appointments.scheduledDate, dates))
+      .orderBy(asc(appointments.scheduledTime))
+
+    for (const row of apptRows) {
+      const key = `${row.scheduledDate}__${row.healthUnitId}`
+      if (!apptsByKey[key]) apptsByKey[key] = []
+      apptsByKey[key].push({
+        scheduledTime: row.scheduledTime,
+        patientName: row.patientName,
+        appointmentNumber: row.appointmentNumber,
+        outcome: row.outcome,
+      })
+    }
+  }
+
+  const schedules = rawSchedules.map((s) => ({
+    ...s,
+    slots: apptsByKey[`${s.scheduledDate}__${s.unitId}`] ?? [],
+  }))
 
   // Unidades ativas — apenas para o formulário do coordenador
   let units: { id: number; name: string }[] = []
@@ -40,6 +81,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     schedules,
     units,
     isCoordinator: user.role === 'coordinator',
+    canSeePatients,
   }
 }
 
