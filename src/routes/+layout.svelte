@@ -7,6 +7,11 @@
   // Itens de navegação com controle de acesso por role
   const navItems = [
     {
+      href: '/',
+      label: 'Início',
+      roles: ['dentist', 'attendant', 'coordinator', 'third_party'],
+    },
+    {
       href: '/fila',
       label: 'Fila de Encaminhamentos',
       roles: ['dentist', 'attendant', 'coordinator'],
@@ -65,11 +70,13 @@
         {#each visibleItems as item}
           <a
             href={item.href}
-            class="mb-1 flex items-center rounded-md px-3 py-2 text-sm transition-colors {page.url.pathname.startsWith(
-              item.href
-            )
-              ? 'bg-blue-50 font-medium text-blue-700'
-              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}"
+            class="mb-1 flex items-center rounded-md px-3 py-2 text-sm transition-colors {item.href === '/'
+              ? page.url.pathname === '/'
+                ? 'bg-blue-50 font-medium text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              : page.url.pathname.startsWith(item.href)
+                ? 'bg-blue-50 font-medium text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}"
           >
             {item.label}
           </a>
