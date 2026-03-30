@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types'
 import { redirect, error, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
 import { appointments, thirdPartySchedules } from '$lib/server/db/index'
-import { gte, eq, isNull } from 'drizzle-orm'
+import { eq, isNull } from 'drizzle-orm'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const user = locals.user
@@ -42,10 +42,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   // Próximo número de consulta
   const nextAppointmentNumber = referral.appointments.length + 1
 
-  // Agendas do terceirizado a partir de hoje
-  const today = new Date().toISOString().slice(0, 10)
+  // Todas as agendas do terceirizado (passadas e futuras) — necessário para lançamentos retroativos
   const schedulesWithUnit = await db.query.thirdPartySchedules.findMany({
-    where: gte(thirdPartySchedules.scheduledDate, today),
     with: { healthUnit: true },
     orderBy: (s, { asc }) => [asc(s.scheduledDate)],
   })

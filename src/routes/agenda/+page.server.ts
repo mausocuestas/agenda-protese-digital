@@ -2,7 +2,7 @@ import type { PageServerLoad, Actions } from './$types'
 import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
 import { thirdPartySchedules, estabelecimentos } from '$lib/server/db/index'
-import { eq, gte, asc } from 'drizzle-orm'
+import { eq, asc } from 'drizzle-orm'
 
 export const load: PageServerLoad = async ({ locals }) => {
   const user = locals.user
@@ -12,9 +12,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   const allowedRoles = ['attendant', 'coordinator', 'third_party']
   if (!allowedRoles.includes(user.role)) redirect(302, '/fila')
 
-  // Visitas a partir de hoje, ordenadas por data e unidade
-  const today = new Date().toISOString().slice(0, 10)
-
+  // Todas as visitas (passadas e futuras), ordenadas por data e unidade
   const schedules = await db
     .select({
       id: thirdPartySchedules.id,
@@ -26,7 +24,6 @@ export const load: PageServerLoad = async ({ locals }) => {
     })
     .from(thirdPartySchedules)
     .innerJoin(estabelecimentos, eq(thirdPartySchedules.healthUnitId, estabelecimentos.id))
-    .where(gte(thirdPartySchedules.scheduledDate, today))
     .orderBy(asc(thirdPartySchedules.scheduledDate), asc(estabelecimentos.estabelecimento))
 
   // Unidades ativas — apenas para o formulário do coordenador

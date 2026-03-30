@@ -162,7 +162,7 @@
               colspan={data.isCoordinator ? 4 : 3}
               class="px-4 py-12 text-center text-sm text-gray-400"
             >
-              Nenhuma visita agendada a partir de hoje.
+              Nenhuma visita cadastrada.
             </td>
           </tr>
         {/each}
