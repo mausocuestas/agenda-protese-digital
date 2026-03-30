@@ -1,7 +1,8 @@
 import type { PageServerLoad, Actions } from './$types'
 import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { systemConfigs } from '$lib/server/db/index'
+import { systemConfigs, prosthesisTypes } from '$lib/server/db/index'
+import { eq, asc } from 'drizzle-orm'
 
 // Parâmetros configuráveis pelo coordenador, com metadados para a UI
 const CONFIG_DEFS = [
@@ -76,7 +77,11 @@ export const load: PageServerLoad = async ({ locals }) => {
   if (!user) redirect(302, '/login')
   if (user.role !== 'coordinator') redirect(302, '/fila')
 
-  const rows = await db.select().from(systemConfigs)
+  const [rows, types] = await Promise.all([
+    db.select().from(systemConfigs),
+    db.select().from(prosthesisTypes).orderBy(asc(prosthesisTypes.name)),
+  ])
+
   const valueMap = Object.fromEntries(rows.map((r) => [r.key, r.value]))
 
   const configs = CONFIG_DEFS.map((def) => ({
@@ -84,10 +89,11 @@ export const load: PageServerLoad = async ({ locals }) => {
     value: valueMap[def.key] ?? '',
   }))
 
-  return { configs }
+  return { configs, prosthesisTypes: types }
 }
 
 export const actions: Actions = {
+  // Atualiza os parâmetros numéricos do sistema
   update: async ({ locals, request }) => {
     const user = locals.user
     if (!user || user.role !== 'coordinator') return fail(403, { error: 'Sem permissão' })
@@ -128,5 +134,52 @@ export const actions: Actions = {
     }
 
     return { success: true }
+  },
+
+  // Adiciona novo tipo de prótese
+  addType: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user || user.role !== 'coordinator') return fail(403, { typeError: 'Sem permissão' })
+
+    const data = await request.formData()
+    const name = (data.get('name') as string)?.trim()
+
+    if (!name) return fail(400, { typeError: 'Nome é obrigatório' })
+    if (name.length > 100) return fail(400, { typeError: 'Nome muito longo (máx. 100 caracteres)' })
+
+    try {
+      await db.insert(prosthesisTypes).values({ name })
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message.includes('unique')) {
+        return fail(400, { typeError: 'Já existe um tipo com esse nome' })
+      }
+      return fail(500, { typeError: 'Erro ao salvar. Tente novamente.' })
+    }
+
+    return { typeAdded: true }
+  },
+
+  // Renomeia um tipo de prótese existente
+  editType: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user || user.role !== 'coordinator') return fail(403, { typeError: 'Sem permissão' })
+
+    const data = await request.formData()
+    const id = parseInt(data.get('id') as string, 10)
+    const name = (data.get('name') as string)?.trim()
+
+    if (!id || !name) return fail(400, { typeError: 'Dados inválidos' })
+    if (name.length > 100) return fail(400, { typeError: 'Nome muito longo (máx. 100 caracteres)' })
+
+    try {
+      await db.update(prosthesisTypes).set({ name }).where(eq(prosthesisTypes.id, id))
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message.includes('unique')) {
+        return fail(400, { typeError: 'Já existe um tipo com esse nome' })
+      }
+      return fail(500, { typeError: 'Erro ao salvar. Tente novamente.' })
+    }
+
+    return { typeEdited: true }
   },
 }

@@ -44,6 +44,11 @@
       roles: ['third_party'],
     },
     {
+      href: '/pacientes',
+      label: 'Pacientes',
+      roles: ['coordinator', 'attendant'],
+    },
+    {
       href: '/configuracoes',
       label: 'Configurações',
       roles: ['coordinator'],
