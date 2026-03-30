@@ -12,7 +12,7 @@ Nome:        agenda-protese-digital
 Objetivo:    Sistema digital de gerenciamento do fluxo de próteses dentárias
              da Secretaria de Saúde de Atibaia/SP — da triagem ao pós-entrega.
 Status:      Funcional — lançamento retroativo de visitas e encaminhamento de paciente implementados
-Próxima tarefa: Inserir visitas retroativas de meses anteriores; depois avaliar se bloqueia datas passadas
+Próxima tarefa: Investigar e corrigir botão "+ Novo encaminhamento" e tela /fila/novo — coordenador e dentista não estão vendo o botão na tela /fila
 ```
 
 ---
