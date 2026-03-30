@@ -41,6 +41,16 @@
       </div>
 
       <div class="flex items-center gap-3">
+        <!-- Botão de novo encaminhamento — dentista e coordenador -->
+        {#if data.canCreateReferral}
+          <a
+            href="/fila/novo"
+            class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            + Novo encaminhamento
+          </a>
+        {/if}
+
         <!-- Seletor de unidade — apenas para coordenador -->
         {#if data.isCoordinator}
           <select

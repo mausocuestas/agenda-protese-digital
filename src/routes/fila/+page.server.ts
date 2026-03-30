@@ -93,6 +93,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   return {
     items,
     isCoordinator,
+    canCreateReferral: user.role === 'dentist' || user.role === 'coordinator',
     units,
     activeUnitId: filterUnitId,
     activeUnitName,
