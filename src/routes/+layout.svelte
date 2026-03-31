@@ -49,6 +49,11 @@
       roles: ['coordinator', 'attendant'],
     },
     {
+      href: '/usuarios',
+      label: 'Usuários',
+      roles: ['coordinator'],
+    },
+    {
       href: '/configuracoes',
       label: 'Configurações',
       roles: ['coordinator'],
