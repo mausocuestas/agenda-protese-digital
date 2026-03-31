@@ -72,6 +72,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     canEditOutcome:
       !appt.outcome &&
       (user.role === 'attendant' || user.role === 'coordinator' || user.role === 'third_party'),
+    // Coordenador pode corrigir resultado já registrado
+    canOverrideOutcome: user.role === 'coordinator' && !!appt.outcome,
     canMarkReady:
       hasProsthesisCustody &&
       !appt.prosthesisReadyAt &&
@@ -170,6 +172,45 @@ export const actions: Actions = {
       .set({
         prosthesisReceivedAt: new Date(),
         prosthesisReceivedBy: user.appId,
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, apptId))
+
+    return { success: true }
+  },
+
+  // Coordenador corrige resultado já registrado (ex.: registro equivocado)
+  edit_outcome: async ({ request, locals, params }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+    if (user.role !== 'coordinator') {
+      return fail(403, { message: 'Sem permissão para alterar resultado' })
+    }
+
+    const apptId = parseInt(params.apptId, 10)
+    if (isNaN(apptId)) return fail(400, { message: 'ID inválido' })
+
+    const formData = await request.formData()
+    const outcome = formData.get('outcome') as string
+    const refusedReason = (formData.get('refusedReason') as string)?.trim() || null
+    const nextEstimateRaw = formData.get('nextDurationEstimate') as string
+    const nextDurationEstimate = nextEstimateRaw ? parseInt(nextEstimateRaw, 10) : null
+
+    if (!['attended', 'absent', 'refused'].includes(outcome)) {
+      return fail(422, { message: 'Selecione um resultado válido' })
+    }
+    if (outcome === 'refused' && !refusedReason) {
+      return fail(422, { message: 'Informe o motivo da recusa' })
+    }
+
+    await db
+      .update(appointments)
+      .set({
+        outcome: outcome as 'attended' | 'absent' | 'refused',
+        refusedReason: outcome === 'refused' ? refusedReason : null,
+        attendedAt: outcome === 'attended' ? new Date() : null,
+        nextDurationEstimate:
+          nextDurationEstimate && [30, 60].includes(nextDurationEstimate) ? nextDurationEstimate : null,
         updatedAt: new Date(),
       })
       .where(eq(appointments.id, apptId))

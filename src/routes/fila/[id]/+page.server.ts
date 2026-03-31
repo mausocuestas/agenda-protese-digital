@@ -3,7 +3,7 @@ import { redirect, error, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
 import { eq, isNull } from 'drizzle-orm'
 import { calcAge, daysSince } from '$lib/utils'
-import { patients, referrals, estabelecimentos } from '$lib/server/db/index'
+import { patients, referrals, estabelecimentos, prosthesisTypes, referralProsthesisTypes } from '$lib/server/db/index'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const user = locals.user
@@ -50,10 +50,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     .orderBy(estabelecimentos.estabelecimento)
 
   const canEditPatient = ['coordinator', 'attendant', 'dentist'].includes(user.role)
+  const canEditReferral = user.role === 'coordinator'
+
+  // Todos os tipos de prótese disponíveis — usados no select de edição do encaminhamento
+  const allProsthesisTypes = canEditReferral
+    ? await db.select({ id: prosthesisTypes.id, name: prosthesisTypes.name }).from(prosthesisTypes).orderBy(prosthesisTypes.name)
+    : []
 
   return {
     canEditPatient,
+    canEditReferral,
     units,
+    allProsthesisTypes,
     referral: {
       id: row.id,
       status: row.status,
@@ -67,6 +75,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       createdAt: row.createdAt.toISOString(),
       createdByName: row.creator.name,
       prosthesisTypes: row.prosthesisTypes.map((p) => p.prosthesisType.name),
+      prosthesisTypeIds: row.prosthesisTypes.map((p) => p.prosthesisTypeId),
       unitName: row.healthUnit.estabelecimento,
     },
     patient: {
@@ -148,5 +157,56 @@ export const actions: Actions = {
     }
 
     return { updateSuccess: true }
+  },
+
+  // Atualiza dados do encaminhamento — apenas coordenador
+  update_referral: async ({ locals, params, request }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+    if (user.role !== 'coordinator') return fail(403, { referralError: 'Sem permissão' })
+
+    const referralId = parseInt(params.id, 10)
+    if (isNaN(referralId)) return fail(400, { referralError: 'ID inválido' })
+
+    const data = await request.formData()
+    const status = data.get('status') as string
+    const introductionDate = data.get('introductionDate') as string
+    const serviceOrderNumber = (data.get('serviceOrderNumber') as string)?.trim() || null
+    // Checkboxes: presença no FormData = marcado; ausência = desmarcado
+    const hasOmbudsmanFlag = data.has('hasOmbudsmanFlag')
+    const hasAccidentFlag = data.has('hasAccidentFlag')
+    const inactivationReason = (data.get('inactivationReason') as string) || null
+    const selectedTypeIds = data.getAll('prosthesisTypeIds').map((v) => parseInt(v as string, 10))
+
+    const validStatuses = ['active', 'pending_reassessment', 'suspended', 'inactive']
+    if (!validStatuses.includes(status)) return fail(400, { referralError: 'Status inválido' })
+    if (!introductionDate) return fail(400, { referralError: 'Data de entrada obrigatória' })
+    if (status === 'inactive' && !inactivationReason) {
+      return fail(400, { referralError: 'Selecione o motivo de inativação' })
+    }
+    if (selectedTypeIds.length === 0) {
+      return fail(400, { referralError: 'Selecione ao menos um tipo de prótese' })
+    }
+
+    await db
+      .update(referrals)
+      .set({
+        status: status as 'active' | 'pending_reassessment' | 'suspended' | 'inactive',
+        introductionDate,
+        serviceOrderNumber,
+        hasOmbudsmanFlag,
+        hasAccidentFlag,
+        inactivationReason: status === 'inactive' ? (inactivationReason as 'dropout' | 'death' | 'cancellation') : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(referrals.id, referralId))
+
+    // Atualiza tipos de prótese: remove todos e reinseere os selecionados
+    await db.delete(referralProsthesisTypes).where(eq(referralProsthesisTypes.referralId, referralId))
+    await db.insert(referralProsthesisTypes).values(
+      selectedTypeIds.map((typeId) => ({ referralId, prosthesisTypeId: typeId }))
+    )
+
+    return { referralUpdated: true }
   },
 }

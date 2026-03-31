@@ -11,10 +11,17 @@
 
   // Controla exibição do formulário de edição de dados do paciente
   let editingPatient = $state(false)
+  // Controla exibição do formulário de edição do encaminhamento
+  let editingReferral = $state(false)
+  // Status selecionado no formulário de edição do encaminhamento (para mostrar campo motivo)
+  let editReferralStatus = $state(data.referral.status)
 
-  // Fecha o formulário após salvar com sucesso
+  // Fecha os formulários após salvar com sucesso
   $effect(() => {
     if (form && 'updateSuccess' in form && form.updateSuccess) editingPatient = false
+  })
+  $effect(() => {
+    if (form && 'referralUpdated' in form && form.referralUpdated) editingReferral = false
   })
 
   // Formata data ISO para dd/mm/aaaa
@@ -238,50 +245,183 @@
 
     <!-- Dados do encaminhamento -->
     <section class="rounded-lg border border-gray-200 bg-white">
-      <div class="border-b border-gray-100 px-5 py-3">
+      <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Encaminhamento</h2>
+        {#if data.canEditReferral}
+          <button
+            onclick={() => (editingReferral = !editingReferral)}
+            class="text-xs text-blue-600 hover:text-blue-800"
+          >
+            {editingReferral ? 'Cancelar' : 'Editar'}
+          </button>
+        {/if}
       </div>
-      <dl class="grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-4">
-        <div>
-          <dt class="text-xs text-gray-500">Status</dt>
-          <dd class="mt-0.5">
-            <span class="rounded-full px-2.5 py-1 text-xs font-medium {statusClass[data.referral.status]}">
-              {statusLabel[data.referral.status]}
-            </span>
-            {#if data.referral.inactivationReason}
-              <span class="mt-1 block text-xs text-gray-500">
-                Motivo: {inactivationLabel[data.referral.inactivationReason]}
-              </span>
+
+      {#if editingReferral}
+        <form
+          method="POST"
+          action="?/update_referral"
+          use:enhance
+          class="grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-4"
+        >
+          <!-- Status -->
+          <div class="col-span-2">
+            <label for="refStatus" class="text-xs text-gray-500">Status</label>
+            <select
+              id="refStatus"
+              name="status"
+              required
+              bind:value={editReferralStatus}
+              class="mt-0.5 w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-blue-400 focus:outline-none"
+            >
+              <option value="active">Ativo</option>
+              <option value="pending_reassessment">Aguardando reavaliação</option>
+              <option value="suspended">Suspenso</option>
+              <option value="inactive">Inativo</option>
+            </select>
+          </div>
+
+          <!-- Motivo de inativação — aparece só quando status = inactive -->
+          {#if editReferralStatus === 'inactive'}
+            <div class="col-span-2">
+              <label for="inactivationReason" class="text-xs text-gray-500">Motivo de inativação</label>
+              <select
+                id="inactivationReason"
+                name="inactivationReason"
+                required
+                class="mt-0.5 w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-blue-400 focus:outline-none"
+              >
+                <option value="" disabled selected={!data.referral.inactivationReason}>Selecione...</option>
+                <option value="dropout" selected={data.referral.inactivationReason === 'dropout'}>Desistência</option>
+                <option value="death" selected={data.referral.inactivationReason === 'death'}>Óbito</option>
+                <option value="cancellation" selected={data.referral.inactivationReason === 'cancellation'}>Cancelamento administrativo</option>
+              </select>
+            </div>
+          {/if}
+
+          <!-- Data de entrada -->
+          <div>
+            <label for="introductionDate" class="text-xs text-gray-500">Data de entrada</label>
+            <input
+              id="introductionDate"
+              name="introductionDate"
+              type="date"
+              required
+              value={data.referral.introductionDate}
+              class="mt-0.5 w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-400 focus:outline-none"
+            />
+          </div>
+
+          <!-- Número de OS -->
+          <div>
+            <label for="serviceOrderNumber" class="text-xs text-gray-500">Número de OS</label>
+            <input
+              id="serviceOrderNumber"
+              name="serviceOrderNumber"
+              type="text"
+              value={data.referral.serviceOrderNumber ?? ''}
+              class="mt-0.5 w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-400 focus:outline-none"
+            />
+          </div>
+
+          <!-- Flags de prioridade — checkbox presente no POST = true, ausente = false -->
+          <div class="col-span-2 flex flex-wrap gap-4">
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                name="hasOmbudsmanFlag"
+                value="on"
+                checked={data.referral.hasOmbudsmanFlag}
+                class="rounded border-gray-300"
+              />
+              Ouvidoria
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                name="hasAccidentFlag"
+                value="on"
+                checked={data.referral.hasAccidentFlag}
+                class="rounded border-gray-300"
+              />
+              Acidente de trabalho
+            </label>
+          </div>
+
+          <!-- Tipos de prótese -->
+          <div class="col-span-2 sm:col-span-4">
+            <p class="text-xs text-gray-500">Tipo(s) de prótese</p>
+            <div class="mt-1 flex flex-wrap gap-3">
+              {#each data.allProsthesisTypes as type (type.id)}
+                <label class="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    name="prosthesisTypeIds"
+                    value={type.id}
+                    checked={data.referral.prosthesisTypeIds.includes(type.id)}
+                    class="rounded border-gray-300"
+                  />
+                  {type.name}
+                </label>
+              {/each}
+            </div>
+          </div>
+
+          <div class="col-span-2 flex items-center gap-3 sm:col-span-4">
+            <button
+              type="submit"
+              class="rounded-md bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
+            >
+              Salvar alterações
+            </button>
+            {#if form && 'referralError' in form && form.referralError}
+              <p class="text-sm text-red-600">{form.referralError}</p>
             {/if}
-          </dd>
-        </div>
-        <div>
-          <dt class="text-xs text-gray-500">Data de entrada</dt>
-          <dd class="mt-0.5 text-gray-900">{fmtDate(data.referral.introductionDate)}</dd>
-        </div>
-        <div>
-          <dt class="text-xs text-gray-500">Tempo na fila</dt>
-          <dd class="mt-0.5 {data.referral.isDelayed ? 'font-semibold text-purple-700' : 'text-gray-900'}">
-            {formatQueueTime(data.referral.daysInQueue)}
-          </dd>
-        </div>
-        <div>
-          <dt class="text-xs text-gray-500">Número de OS</dt>
-          <dd class="mt-0.5 font-mono text-gray-900">{data.referral.serviceOrderNumber ?? '—'}</dd>
-        </div>
-        <div class="col-span-2">
-          <dt class="text-xs text-gray-500">Tipo(s) de prótese</dt>
-          <dd class="mt-1 flex flex-wrap gap-1">
-            {#each data.referral.prosthesisTypes as type}
-              <span class="rounded bg-gray-100 px-2 py-0.5 text-sm text-gray-700">{type}</span>
-            {/each}
-          </dd>
-        </div>
-        <div class="col-span-2">
-          <dt class="text-xs text-gray-500">Cadastrado por</dt>
-          <dd class="mt-0.5 text-gray-900">{data.referral.createdByName} <span class="text-gray-400">em {fmtDateTime(data.referral.createdAt)}</span></dd>
-        </div>
-      </dl>
+          </div>
+        </form>
+      {:else}
+        <dl class="grid grid-cols-2 gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-4">
+          <div>
+            <dt class="text-xs text-gray-500">Status</dt>
+            <dd class="mt-0.5">
+              <span class="rounded-full px-2.5 py-1 text-xs font-medium {statusClass[data.referral.status]}">
+                {statusLabel[data.referral.status]}
+              </span>
+              {#if data.referral.inactivationReason}
+                <span class="mt-1 block text-xs text-gray-500">
+                  Motivo: {inactivationLabel[data.referral.inactivationReason]}
+                </span>
+              {/if}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs text-gray-500">Data de entrada</dt>
+            <dd class="mt-0.5 text-gray-900">{fmtDate(data.referral.introductionDate)}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-gray-500">Tempo na fila</dt>
+            <dd class="mt-0.5 {data.referral.isDelayed ? 'font-semibold text-purple-700' : 'text-gray-900'}">
+              {formatQueueTime(data.referral.daysInQueue)}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs text-gray-500">Número de OS</dt>
+            <dd class="mt-0.5 font-mono text-gray-900">{data.referral.serviceOrderNumber ?? '—'}</dd>
+          </div>
+          <div class="col-span-2">
+            <dt class="text-xs text-gray-500">Tipo(s) de prótese</dt>
+            <dd class="mt-1 flex flex-wrap gap-1">
+              {#each data.referral.prosthesisTypes as type}
+                <span class="rounded bg-gray-100 px-2 py-0.5 text-sm text-gray-700">{type}</span>
+              {/each}
+            </dd>
+          </div>
+          <div class="col-span-2">
+            <dt class="text-xs text-gray-500">Cadastrado por</dt>
+            <dd class="mt-0.5 text-gray-900">{data.referral.createdByName} <span class="text-gray-400">em {fmtDateTime(data.referral.createdAt)}</span></dd>
+          </div>
+        </dl>
+      {/if}
     </section>
 
     <!-- Consultas -->

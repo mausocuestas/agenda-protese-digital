@@ -45,6 +45,13 @@
   let selectedOutcome = $state('')
   let showContactForm = $state(false)
   let selectedChannel = $state('phone')
+  // Coordenador editando resultado já registrado
+  let editingOutcome = $state(false)
+  let editOutcomeValue = $state(data.appointment.outcome ?? '')
+
+  $effect(() => {
+    if (form?.success) editingOutcome = false
+  })
 
   function fmtDate(iso: string): string {
     const [y, m, d] = iso.substring(0, 10).split('-')
@@ -155,19 +162,97 @@
 
     <!-- Resultado da consulta -->
     <section class="rounded-lg border border-gray-200 bg-white">
-      <div class="border-b border-gray-100 px-5 py-3">
+      <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Resultado</h2>
+        {#if data.canOverrideOutcome}
+          <button
+            onclick={() => (editingOutcome = !editingOutcome)}
+            class="text-xs text-blue-600 hover:text-blue-800"
+          >
+            {editingOutcome ? 'Cancelar' : 'Editar resultado'}
+          </button>
+        {/if}
       </div>
 
-      {#if data.appointment.outcome}
+      {#if data.appointment.outcome && editingOutcome}
+        <!-- Coordenador corrigindo resultado já registrado -->
+        <form
+          method="POST"
+          action="?/edit_outcome"
+          use:enhance
+          class="space-y-5 px-5 py-4"
+        >
+          <fieldset>
+            <legend class="text-sm font-medium text-gray-700">Resultado correto</legend>
+            <div class="mt-3 space-y-2.5">
+              {#each [['attended', 'Compareceu'], ['absent', 'Faltou (sem avisar)'], ['refused', 'Recusado pelo protético']] as [val, label]}
+                <label class="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="radio"
+                    name="outcome"
+                    value={val}
+                    bind:group={editOutcomeValue}
+                  />
+                  <span class="text-sm text-gray-800">{label}</span>
+                </label>
+              {/each}
+            </div>
+          </fieldset>
+
+          {#if editOutcomeValue === 'refused'}
+            <div>
+              <label for="editRefusedReason" class="block text-sm font-medium text-gray-700">
+                Motivo da recusa <span class="text-red-500">*</span>
+              </label>
+              <textarea
+                id="editRefusedReason"
+                name="refusedReason"
+                rows="2"
+                required
+                value={data.appointment.refusedReason ?? ''}
+                class="mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
+              ></textarea>
+            </div>
+          {/if}
+
+          {#if editOutcomeValue === 'attended'}
+            <div>
+              <p class="text-sm font-medium text-gray-700">Estimativa para confecção da próxima peça</p>
+              <div class="mt-2 flex gap-5">
+                <label class="flex cursor-pointer items-center gap-2">
+                  <input type="radio" name="nextDurationEstimate" value="30"
+                    checked={data.appointment.nextDurationEstimate === 30} />
+                  <span class="text-sm text-gray-800">30 min</span>
+                </label>
+                <label class="flex cursor-pointer items-center gap-2">
+                  <input type="radio" name="nextDurationEstimate" value="60"
+                    checked={data.appointment.nextDurationEstimate === 60} />
+                  <span class="text-sm text-gray-800">60 min</span>
+                </label>
+                <label class="flex cursor-pointer items-center gap-2">
+                  <input type="radio" name="nextDurationEstimate" value=""
+                    checked={!data.appointment.nextDurationEstimate} />
+                  <span class="text-sm text-gray-500">Não informado</span>
+                </label>
+              </div>
+            </div>
+          {/if}
+
+          <div class="flex justify-end border-t border-gray-100 pt-4">
+            <button
+              type="submit"
+              class="rounded-md bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-700"
+            >
+              Salvar correção
+            </button>
+          </div>
+        </form>
+
+      {:else if data.appointment.outcome}
         <!-- Resultado já registrado — somente leitura -->
         <div class="px-5 py-4">
           <div class="flex items-center gap-3">
-            <span
-              class="rounded-full px-3 py-1 text-sm font-medium {outcomeClass[
-                data.appointment.outcome
-              ]}"
-            >
+            <span class="rounded-full px-3 py-1 text-sm font-medium {outcomeClass[data.appointment.outcome]}">
               {outcomeLabel[data.appointment.outcome]}
             </span>
             {#if data.appointment.attendedAt}
