@@ -42,6 +42,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   // Próximo número de consulta
   const nextAppointmentNumber = referral.appointments.length + 1
 
+  // Estimativa de duração informada pelo terceirizado na última consulta com comparecimento
+  const lastAttended = referral.appointments
+    .filter((a) => a.outcome === 'attended')
+    .at(-1)
+  const prevDurationEstimate = lastAttended?.nextDurationEstimate ?? null
+
   // Todas as agendas do terceirizado (passadas e futuras) — necessário para lançamentos retroativos
   const schedulesWithUnit = await db.query.thirdPartySchedules.findMany({
     with: { healthUnit: true },
@@ -84,6 +90,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     patientName: referral.patient.fullName,
     unitName: referral.healthUnit.estabelecimento,
     nextAppointmentNumber,
+    prevDurationEstimate,
     schedules: schedulesWithUnit.map((s) => ({
       id: s.id,
       scheduledDate: s.scheduledDate,

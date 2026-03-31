@@ -102,6 +102,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       scheduledTime: a.scheduledTime,
       outcome: a.outcome,
       refusedReason: a.refusedReason,
+      nextDurationEstimate: a.nextDurationEstimate,
       prosthesisReadyAt: a.prosthesisReadyAt?.toISOString() ?? null,
       prosthesisReceivedAt: a.prosthesisReceivedAt?.toISOString() ?? null,
     })),

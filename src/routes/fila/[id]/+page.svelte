@@ -451,6 +451,11 @@
                   {#if appt.refusedReason}
                     <p class="mt-1 text-sm text-orange-700">Motivo de recusa: {appt.refusedReason}</p>
                   {/if}
+                  {#if appt.nextDurationEstimate && appt.outcome === 'attended'}
+                    <p class="mt-1 text-xs text-indigo-700">
+                      Previsão para próxima consulta: <strong>{appt.nextDurationEstimate === 60 ? '1 hora' : '30 min'}</strong>
+                    </p>
+                  {/if}
                 </div>
                 <div class="flex flex-col items-end gap-1.5 shrink-0">
                   {#if appt.outcome}

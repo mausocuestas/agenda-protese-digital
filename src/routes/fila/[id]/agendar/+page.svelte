@@ -56,13 +56,18 @@
   <div class="mx-auto max-w-lg p-6">
 
     <!-- Número da consulta (informativo) -->
-    <div class="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-5 py-4">
+    <div class="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-5 py-4 space-y-1.5">
       <p class="text-sm text-blue-700">
         Esta será a <strong>consulta nº {data.nextAppointmentNumber}</strong>
         {#if appointmentLabel[data.nextAppointmentNumber]}
           — <strong>{appointmentLabel[data.nextAppointmentNumber]}</strong>
         {/if}
       </p>
+      {#if data.prevDurationEstimate}
+        <p class="text-sm text-indigo-700">
+          O protético estimou <strong>{data.prevDurationEstimate === 60 ? '1 hora' : '30 minutos'}</strong> para confecção desta peça.
+        </p>
+      {/if}
     </div>
 
     <!-- Erro do servidor -->
