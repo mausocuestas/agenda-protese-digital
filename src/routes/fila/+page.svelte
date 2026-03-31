@@ -2,17 +2,39 @@
   import type { PageData } from './$types'
   import { formatQueueTime } from '$lib/utils'
   import { goto } from '$app/navigation'
+  import { enhance } from '$app/forms'
 
   let { data }: { data: PageData } = $props()
 
   // Filtro de status — "all" mostra active + pending_reassessment
   let statusFilter = $state<'all' | 'active' | 'pending_reassessment'>('all')
 
-  let filtered = $derived(
-    statusFilter === 'all'
+  // Filtro de flags — conjunto de flags ativas; vazio = sem filtro
+  let flagFilters = $state(new Set<'ouv' | 'aci' | 'ids' | 'atr'>())
+
+  function toggleFlagFilter(flag: 'ouv' | 'aci' | 'ids' | 'atr') {
+    const next = new Set(flagFilters)
+    if (next.has(flag)) next.delete(flag)
+    else next.add(flag)
+    flagFilters = next
+  }
+
+  let filtered = $derived(() => {
+    let result = statusFilter === 'all'
       ? data.items
       : data.items.filter((i) => i.status === statusFilter)
-  )
+
+    if (flagFilters.size > 0) {
+      result = result.filter((i) =>
+        (flagFilters.has('ouv') && i.hasOmbudsmanFlag) ||
+        (flagFilters.has('aci') && i.hasAccidentFlag) ||
+        (flagFilters.has('ids') && i.isElderly) ||
+        (flagFilters.has('atr') && i.isDelayed)
+      )
+    }
+
+    return result
+  })
 
   const statusLabel: Record<string, string> = {
     active: 'Ativo',
@@ -37,7 +59,7 @@
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-lg font-semibold text-gray-900">{data.activeUnitName}</h1>
-        <p class="text-sm text-gray-500">{filtered.length} paciente{filtered.length !== 1 ? 's' : ''} na fila</p>
+        <p class="text-sm text-gray-500">{filtered().length} paciente{filtered().length !== 1 ? 's' : ''} na fila</p>
       </div>
 
       <div class="flex items-center gap-3">
@@ -79,15 +101,52 @@
         </div>
       </div>
     </div>
-  </header>
 
-  <!-- Legenda de prioridades -->
-  <div class="flex gap-4 border-b border-gray-100 bg-white px-6 py-2 text-xs text-gray-500">
-    <span class="flex items-center gap-1"><span class="font-bold text-red-600">OUV</span> Ouvidoria</span>
-    <span class="flex items-center gap-1"><span class="font-bold text-orange-600">ACI</span> Acidente</span>
-    <span class="flex items-center gap-1"><span class="font-bold text-blue-600">IDS</span> Idoso (60+)</span>
-    <span class="flex items-center gap-1"><span class="font-bold text-purple-600">ATR</span> Atrasado (+180 dias)</span>
-  </div>
+    <!-- Filtros de prioridade -->
+    <div class="mt-3 flex items-center gap-2">
+      <span class="text-xs text-gray-400">Filtrar por:</span>
+      <button
+        onclick={() => toggleFlagFilter('ouv')}
+        class="rounded px-2 py-1 text-xs font-bold transition-colors {flagFilters.has('ouv')
+          ? 'bg-red-600 text-white'
+          : 'bg-red-50 text-red-600 hover:bg-red-100'}"
+      >
+        OUV Ouvidoria
+      </button>
+      <button
+        onclick={() => toggleFlagFilter('aci')}
+        class="rounded px-2 py-1 text-xs font-bold transition-colors {flagFilters.has('aci')
+          ? 'bg-orange-600 text-white'
+          : 'bg-orange-50 text-orange-600 hover:bg-orange-100'}"
+      >
+        ACI Acidente
+      </button>
+      <button
+        onclick={() => toggleFlagFilter('ids')}
+        class="rounded px-2 py-1 text-xs font-bold transition-colors {flagFilters.has('ids')
+          ? 'bg-blue-600 text-white'
+          : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}"
+      >
+        IDS Idoso (60+)
+      </button>
+      <button
+        onclick={() => toggleFlagFilter('atr')}
+        class="rounded px-2 py-1 text-xs font-bold transition-colors {flagFilters.has('atr')
+          ? 'bg-purple-600 text-white'
+          : 'bg-purple-50 text-purple-600 hover:bg-purple-100'}"
+      >
+        ATR Atrasado (+180d)
+      </button>
+      {#if flagFilters.size > 0}
+        <button
+          onclick={() => (flagFilters = new Set())}
+          class="ml-1 text-xs text-gray-400 hover:text-gray-600"
+        >
+          Limpar filtros
+        </button>
+      {/if}
+    </div>
+  </header>
 
   <!-- Tabela -->
   <div class="overflow-x-auto">
@@ -105,26 +164,58 @@
         </tr>
       </thead>
       <tbody>
-        {#each filtered as item (item.id)}
-          <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onclick={() => location.href = `/fila/${item.id}`}>
+        {#each filtered() as item (item.id)}
+          <tr
+            class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+            onclick={() => (location.href = `/fila/${item.id}`)}
+          >
             <!-- Flags de prioridade -->
             <td class="px-4 py-3">
               <div class="flex gap-1">
-                {#if item.hasOmbudsmanFlag}
+                <!-- OUV: toggle apenas para coordenador; demais veem badge somente quando ativo -->
+                {#if data.isCoordinator}
+                  <form method="POST" action="?/toggle_flag" use:enhance class="inline">
+                    <input type="hidden" name="referralId" value={item.id} />
+                    <input type="hidden" name="flag" value="ombudsman" />
+                    <button
+                      type="submit"
+                      title={item.hasOmbudsmanFlag ? 'Remover flag Ouvidoria' : 'Marcar como Ouvidoria'}
+                      onclick={(e) => e.stopPropagation()}
+                      class="rounded px-1.5 py-0.5 text-xs font-bold transition-colors {item.hasOmbudsmanFlag
+                        ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                        : 'bg-gray-50 text-gray-300 hover:bg-red-50 hover:text-red-400'}"
+                    >
+                      OUV
+                    </button>
+                  </form>
+                {:else if item.hasOmbudsmanFlag}
                   <span class="rounded px-1.5 py-0.5 text-xs font-bold text-red-600 bg-red-50">OUV</span>
                 {/if}
-                {#if item.hasAccidentFlag}
-                  <span class="rounded px-1.5 py-0.5 text-xs font-bold text-orange-600 bg-orange-50">ACI</span>
-                {/if}
+
+                <!-- ACI: toggle para todos os perfis -->
+                <form method="POST" action="?/toggle_flag" use:enhance class="inline">
+                  <input type="hidden" name="referralId" value={item.id} />
+                  <input type="hidden" name="flag" value="accident" />
+                  <button
+                    type="submit"
+                    title={item.hasAccidentFlag ? 'Remover flag Acidente' : 'Marcar como Acidente de trabalho'}
+                    onclick={(e) => e.stopPropagation()}
+                    class="rounded px-1.5 py-0.5 text-xs font-bold transition-colors {item.hasAccidentFlag
+                      ? 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+                      : 'bg-gray-50 text-gray-300 hover:bg-orange-50 hover:text-orange-400'}"
+                  >
+                    ACI
+                  </button>
+                </form>
+
+                <!-- IDS e ATR: sempre somente leitura -->
                 {#if item.isElderly}
                   <span class="rounded px-1.5 py-0.5 text-xs font-bold text-blue-600 bg-blue-50">IDS</span>
                 {/if}
                 {#if item.isDelayed}
                   <span class="rounded px-1.5 py-0.5 text-xs font-bold text-purple-600 bg-purple-50">ATR</span>
                 {/if}
-                {#if !item.hasOmbudsmanFlag && !item.hasAccidentFlag && !item.isElderly && !item.isDelayed}
-                  <span class="text-gray-300">—</span>
-                {/if}
+
               </div>
             </td>
 

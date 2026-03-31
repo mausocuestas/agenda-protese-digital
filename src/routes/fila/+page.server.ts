@@ -1,5 +1,5 @@
-import type { PageServerLoad } from './$types'
-import { redirect } from '@sveltejs/kit'
+import type { PageServerLoad, Actions } from './$types'
+import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
 import { referrals, estabelecimentos } from '$lib/server/db/index'
 import { isNull, inArray, eq, desc, asc } from 'drizzle-orm'
@@ -98,4 +98,46 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     activeUnitId: filterUnitId,
     activeUnitName,
   }
+}
+
+export const actions: Actions = {
+  // Ativa/desativa flag OUV ou ACI diretamente da fila
+  toggle_flag: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+
+    const data = await request.formData()
+    const referralId = parseInt(data.get('referralId') as string, 10)
+    const flag = data.get('flag') as string
+
+    if (isNaN(referralId) || !['ombudsman', 'accident'].includes(flag)) {
+      return fail(400, { error: 'Dados inválidos' })
+    }
+
+    // OUV: exclusivo do coordenador; ACI: qualquer perfil pode alternar
+    if (flag === 'ombudsman' && user.role !== 'coordinator') {
+      return fail(403, { error: 'Sem permissão' })
+    }
+
+    const row = await db.query.referrals.findFirst({
+      where: (r, { eq: eqFn }) => eqFn(r.id, referralId),
+      columns: { hasOmbudsmanFlag: true, hasAccidentFlag: true },
+    })
+
+    if (!row) return fail(404, { error: 'Encaminhamento não encontrado' })
+
+    if (flag === 'ombudsman') {
+      await db
+        .update(referrals)
+        .set({ hasOmbudsmanFlag: !row.hasOmbudsmanFlag, updatedAt: new Date() })
+        .where(eq(referrals.id, referralId))
+    } else {
+      await db
+        .update(referrals)
+        .set({ hasAccidentFlag: !row.hasAccidentFlag, updatedAt: new Date() })
+        .where(eq(referrals.id, referralId))
+    }
+
+    return { toggled: true }
+  },
 }
