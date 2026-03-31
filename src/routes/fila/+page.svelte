@@ -6,13 +6,13 @@
 
   let { data }: { data: PageData } = $props()
 
-  // Filtro de status — "all" mostra active + pending_reassessment
-  let statusFilter = $state<'all' | 'active' | 'pending_reassessment'>('all')
+  // Filtro de status — "all" mostra active + pending_reassessment + suspended
+  let statusFilter = $state<'all' | 'active' | 'pending_reassessment' | 'suspended'>('all')
 
   // Filtro de flags — conjunto de flags ativas; vazio = sem filtro
-  let flagFilters = $state(new Set<'ouv' | 'aci' | 'ids' | 'atr'>())
+  let flagFilters = $state(new Set<'ouv' | 'aci' | 'ids' | 'atr' | 'sus'>())
 
-  function toggleFlagFilter(flag: 'ouv' | 'aci' | 'ids' | 'atr') {
+  function toggleFlagFilter(flag: 'ouv' | 'aci' | 'ids' | 'atr' | 'sus') {
     const next = new Set(flagFilters)
     if (next.has(flag)) next.delete(flag)
     else next.add(flag)
@@ -29,7 +29,8 @@
         (flagFilters.has('ouv') && i.hasOmbudsmanFlag) ||
         (flagFilters.has('aci') && i.hasAccidentFlag) ||
         (flagFilters.has('ids') && i.isElderly) ||
-        (flagFilters.has('atr') && i.isDelayed)
+        (flagFilters.has('atr') && i.isDelayed) ||
+        (flagFilters.has('sus') && i.isSuspended)
       )
     }
 
@@ -39,11 +40,13 @@
   const statusLabel: Record<string, string> = {
     active: 'Ativo',
     pending_reassessment: 'Reavaliação',
+    suspended: 'Suspenso',
   }
 
   const statusClass: Record<string, string> = {
     active: 'bg-green-100 text-green-800',
     pending_reassessment: 'bg-yellow-100 text-yellow-800',
+    suspended: 'bg-gray-100 text-gray-500',
   }
 
   // Navega com query param ao selecionar unidade (apenas coordenador)
@@ -88,7 +91,7 @@
 
         <!-- Filtro de status -->
         <div class="flex gap-1 rounded-lg bg-gray-100 p-1">
-          {#each (['all', 'active', 'pending_reassessment'] as const) as opt}
+          {#each (['all', 'active', 'pending_reassessment', 'suspended'] as const) as opt}
             <button
               class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {statusFilter === opt
                 ? 'bg-white text-gray-900 shadow-sm'
@@ -137,6 +140,14 @@
       >
         ATR Atrasado (+180d)
       </button>
+      <button
+        onclick={() => toggleFlagFilter('sus')}
+        class="rounded px-2 py-1 text-xs font-bold transition-colors {flagFilters.has('sus')
+          ? 'bg-gray-600 text-white'
+          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}"
+      >
+        SUS Suspenso
+      </button>
       {#if flagFilters.size > 0}
         <button
           onclick={() => (flagFilters = new Set())}
@@ -166,7 +177,7 @@
       <tbody>
         {#each filtered() as item (item.id)}
           <tr
-            class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+            class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer {item.isSuspended ? 'opacity-60' : ''}"
             onclick={() => (location.href = `/fila/${item.id}`)}
           >
             <!-- Flags de prioridade -->
@@ -214,6 +225,25 @@
                 {/if}
                 {#if item.isDelayed}
                   <span class="rounded px-1.5 py-0.5 text-xs font-bold text-purple-600 bg-purple-50">ATR</span>
+                {/if}
+
+                <!-- SUS: toggle para coordenador; demais veem badge somente quando suspenso -->
+                {#if data.isCoordinator}
+                  <form method="POST" action="?/toggle_suspend" use:enhance class="inline">
+                    <input type="hidden" name="referralId" value={item.id} />
+                    <button
+                      type="submit"
+                      title={item.isSuspended ? 'Remover suspensão' : 'Suspender encaminhamento'}
+                      onclick={(e) => e.stopPropagation()}
+                      class="rounded px-1.5 py-0.5 text-xs font-bold transition-colors {item.isSuspended
+                        ? 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                        : 'bg-gray-50 text-gray-300 hover:bg-gray-100 hover:text-gray-500'}"
+                    >
+                      SUS
+                    </button>
+                  </form>
+                {:else if item.isSuspended}
+                  <span class="rounded px-1.5 py-0.5 text-xs font-bold text-gray-500 bg-gray-200">SUS</span>
                 {/if}
 
               </div>

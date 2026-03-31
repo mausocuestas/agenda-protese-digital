@@ -11,7 +11,7 @@
 Nome:        agenda-protese-digital
 Objetivo:    Sistema digital de gerenciamento do fluxo de próteses dentárias
              da Secretaria de Saúde de Atibaia/SP — da triagem ao pós-entrega.
-Status:      Funcional — edição de encaminhamento e correção de desfecho pelo coordenador
+Status:      Funcional — status Suspenso na fila com toggle inline para coordenador
 Próxima tarefa: A definir
 ```
 

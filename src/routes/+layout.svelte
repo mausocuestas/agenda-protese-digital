@@ -12,51 +12,61 @@
   }
 
   // Itens de navegação com controle de acesso por role
+  // notificationKey mapeia para data.notifications para exibir badge de pendências
   const navItems = [
     {
       href: '/',
       label: 'Início',
       roles: ['dentist', 'attendant', 'coordinator', 'third_party'],
+      notificationKey: null,
     },
     {
       href: '/fila',
       label: 'Fila de Encaminhamentos',
       roles: ['dentist', 'attendant', 'coordinator'],
+      notificationKey: 'fila' as const,
     },
     {
       href: '/agenda',
       label: 'Agenda do Protético',
       roles: ['attendant', 'coordinator', 'third_party'],
+      notificationKey: null,
     },
     {
       href: '/custodia',
       label: 'Custódia de Próteses',
       roles: ['attendant', 'coordinator', 'third_party'],
+      notificationKey: 'custodia' as const,
     },
     {
       href: '/qualidade',
       label: 'Qualidade Pós-Entrega',
       roles: ['dentist', 'attendant', 'coordinator'],
+      notificationKey: 'qualidade' as const,
     },
     {
       href: '/minha-agenda',
       label: 'Minha Agenda',
       roles: ['third_party'],
+      notificationKey: null,
     },
     {
       href: '/pacientes',
       label: 'Pacientes',
       roles: ['coordinator', 'attendant'],
+      notificationKey: null,
     },
     {
       href: '/usuarios',
       label: 'Usuários',
       roles: ['coordinator'],
+      notificationKey: null,
     },
     {
       href: '/configuracoes',
       label: 'Configurações',
       roles: ['coordinator'],
+      notificationKey: null,
     },
   ]
 
@@ -85,17 +95,28 @@
       <!-- Navegação filtrada por role -->
       <nav class="flex-1 px-2 py-3">
         {#each visibleItems as item}
+          {@const isActive =
+            item.href === '/'
+              ? page.url.pathname === '/'
+              : page.url.pathname.startsWith(item.href)}
+          {@const badgeCount =
+            item.notificationKey ? (data.notifications[item.notificationKey] ?? 0) : 0}
           <a
             href={item.href}
-            class="mb-1 flex items-center rounded-md px-3 py-2 text-sm transition-colors {item.href === '/'
-              ? page.url.pathname === '/'
-                ? 'bg-blue-50 font-medium text-blue-700'
-                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-              : page.url.pathname.startsWith(item.href)
-                ? 'bg-blue-50 font-medium text-blue-700'
-                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}"
+            class="mb-1 flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors {isActive
+              ? 'bg-blue-50 font-medium text-blue-700'
+              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}"
           >
-            {item.label}
+            <span>{item.label}</span>
+            {#if badgeCount > 0}
+              <span
+                class="ml-2 shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold leading-none {isActive
+                  ? 'bg-blue-200 text-blue-800'
+                  : 'bg-red-100 text-red-700'}"
+              >
+                {badgeCount}
+              </span>
+            {/if}
           </a>
         {/each}
       </nav>

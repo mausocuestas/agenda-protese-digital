@@ -49,7 +49,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   const rows = await db.query.referrals.findMany({
     where: (r, { and, eq: eqOp }) => {
-      const statusFilter = inArray(r.status, ['active', 'pending_reassessment'])
+      const statusFilter = inArray(r.status, ['active', 'pending_reassessment', 'suspended'])
       const notDeleted = isNull(r.deletedAt)
       if (filterUnitId !== null) {
         return and(statusFilter, notDeleted, eqOp(r.healthUnitId, filterUnitId))
@@ -83,6 +83,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       daysInQueue,
       isDelayed: daysInQueue >= 180,
       status: r.status,
+      isSuspended: r.status === 'suspended',
       hasOmbudsmanFlag: r.hasOmbudsmanFlag,
       hasAccidentFlag: r.hasAccidentFlag,
       serviceOrderNumber: r.serviceOrderNumber,
@@ -137,6 +138,33 @@ export const actions: Actions = {
         .set({ hasAccidentFlag: !row.hasAccidentFlag, updatedAt: new Date() })
         .where(eq(referrals.id, referralId))
     }
+
+    return { toggled: true }
+  },
+
+  // Suspende ou reativa encaminhamento — exclusivo do coordenador
+  // Ao reativar, retorna para 'active'; ajuste fino via edição completa em /fila/[id]
+  toggle_suspend: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+    if (user.role !== 'coordinator') return fail(403, { error: 'Sem permissão' })
+
+    const data = await request.formData()
+    const referralId = parseInt(data.get('referralId') as string, 10)
+    if (isNaN(referralId)) return fail(400, { error: 'Dados inválidos' })
+
+    const row = await db.query.referrals.findFirst({
+      where: (r, { eq: eqFn }) => eqFn(r.id, referralId),
+      columns: { status: true },
+    })
+
+    if (!row) return fail(404, { error: 'Encaminhamento não encontrado' })
+
+    const newStatus = row.status === 'suspended' ? 'active' : 'suspended'
+    await db
+      .update(referrals)
+      .set({ status: newStatus, updatedAt: new Date() })
+      .where(eq(referrals.id, referralId))
 
     return { toggled: true }
   },
