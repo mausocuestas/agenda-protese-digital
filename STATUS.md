@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-03-31 (sessão de encerramento — commit e push)
+**Última atualização:** 2026-03-31 (seed de dados iniciais criado e executado)
 
 ---
 
@@ -85,12 +85,12 @@
 - [ ] Verificar se `/fila` já computa `daysSince(lastAppointment) > intervalDays`
 - [ ] Se não: adicionar campo `isDelayed` na query + badge na fila e no dashboard
 
-### 6. Seed de dados iniciais
-- [ ] Arquivo de seed (`src/lib/server/db/seed.ts`)
-- [ ] 9 tipos de prótese padrão
-- [ ] `system_configs` com valores do doc de discovery
-- [ ] Vínculos `unit_responsibilities` (Centro-UBS + Imperial-USF)
-- [ ] Comando `pnpm db:seed` no `package.json`
+### 6. Seed de dados iniciais ✅
+- [x] Arquivo de seed (`src/lib/server/db/seed.ts`)
+- [x] 7 tipos de prótese padrão (discovery lista 7, não 9 — STATUS anterior estava incorreto)
+- [x] `system_configs` com valores do doc de discovery
+- [x] Vínculos `unit_responsibilities` corrigidos (Centro-UBS: 9; Imperial-USF: 9) — dado anterior estava com Centro/Imperial invertidos
+- [x] Comando `pnpm db:seed` no `package.json`
 
 ### 7. Controle de visibilidade ao terceirizado
 - [ ] Toggle `is_visible_to_third_party` em `/qualidade` (visível apenas ao coordenador)
