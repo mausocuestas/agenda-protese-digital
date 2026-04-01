@@ -3,6 +3,23 @@
 > Arquivo de contexto para o Claude Code (VSCode).
 > Copie para a raiz de cada projeto novo e ajuste a seção "Projeto Atual".
 
+
+---
+## Protocolo de início de sessão (OBRIGATÓRIO)
+Antes de qualquer tarefa — sem exceção — leia nesta ordem:
+
+STATUS.md → estado atual do projeto, o que está feito, o que está em andamento
+DECISIONS.md → decisões arquiteturais e de domínio já tomadas
+Este CLAUDE.md → stack, padrões e regras
+
+Se qualquer um desses arquivos não existir, avise imediatamente antes de prosseguir.
+Ao fim de cada sessão, atualize o STATUS.md com:
+
+O que foi concluído nesta sessão
+O que ficou em andamento
+Qualquer nova decisão (registre também no DECISIONS.md)
+Novas armadilhas encontradas
+
 ---
 
 ## Projeto Atual
