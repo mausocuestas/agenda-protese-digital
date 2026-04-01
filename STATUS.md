@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-01 (edição de consultas em /fila/[id])
+**Última atualização:** 2026-04-01 (botão "Agendar consulta" movido para a seção Consultas em /fila/[id])
 
 ---
 

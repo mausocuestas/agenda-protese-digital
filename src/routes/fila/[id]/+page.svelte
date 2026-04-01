@@ -122,19 +122,9 @@
         ← Voltar para a fila
       </a>
       <div class="h-5 w-px bg-gray-200"></div>
-      <div class="flex flex-1 items-center justify-between">
-        <div>
-          <h1 class="text-lg font-semibold text-gray-900">{data.patient.fullName}</h1>
-          <p class="text-sm text-gray-500">{data.referral.unitName}</p>
-        </div>
-        {#if canSchedule}
-          <a
-            href="/fila/{data.referral.id}/agendar"
-            class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-          >
-            + Agendar consulta
-          </a>
-        {/if}
+      <div>
+        <h1 class="text-lg font-semibold text-gray-900">{data.patient.fullName}</h1>
+        <p class="text-sm text-gray-500">{data.referral.unitName}</p>
       </div>
     </div>
   </header>
@@ -451,10 +441,18 @@
 
     <!-- Consultas -->
     <section class="rounded-lg border border-gray-200 bg-white">
-      <div class="border-b border-gray-100 px-5 py-3">
+      <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
           Consultas ({data.appointments.length})
         </h2>
+        {#if canSchedule}
+          <a
+            href="/fila/{data.referral.id}/agendar"
+            class="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
+          >
+            + Agendar consulta
+          </a>
+        {/if}
       </div>
       {#if data.appointments.length === 0}
         <p class="px-5 py-6 text-sm text-gray-400">Nenhuma consulta agendada.</p>
