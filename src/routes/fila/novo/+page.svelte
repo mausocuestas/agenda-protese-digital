@@ -40,6 +40,31 @@
   // Para coordenador: unidade selecionada (pré-seleciona a primeira)
   let healthUnitId = $state(data.units[0]?.id ?? 0)
 
+  // Agrupa os tipos por posição para reduzir erro de seleção — sem alterar banco
+  const prosthesisGroups = $derived([
+    {
+      label: 'Superior',
+      types: data.prosthesisTypes.filter((t) => t.name.includes('Superior')),
+    },
+    {
+      label: 'Inferior',
+      types: data.prosthesisTypes.filter((t) => t.name.includes('Inferior')),
+    },
+    {
+      label: 'Outros',
+      types: data.prosthesisTypes.filter(
+        (t) => !t.name.includes('Superior') && !t.name.includes('Inferior')
+      ),
+    },
+  ])
+
+  // Label curto dentro do contexto do grupo — evita repetir "Superior"/"Inferior"
+  function shortLabel(name: string): string {
+    if (name.includes('Total')) return 'Total'
+    if (name.includes('Parcial')) return 'Parcial Removível'
+    return name
+  }
+
   function toggleType(id: number) {
     if (selectedTypeIds.includes(id)) {
       selectedTypeIds = selectedTypeIds.filter((t) => t !== id)
@@ -275,26 +300,36 @@
             {/if}
           </div>
 
-          <!-- Tipos de prótese (máx. 2) -->
+          <!-- Tipos de prótese (máx. 2) — agrupados por Superior / Inferior / Outros -->
           <div class="mt-5">
-            <p class="mb-2 text-xs font-medium text-gray-600">
+            <p class="mb-3 text-xs font-medium text-gray-600">
               Tipo(s) de prótese
               <span class="font-normal text-gray-400">(máx. 2)</span>
             </p>
-            <div class="flex flex-wrap gap-2">
-              {#each data.prosthesisTypes as type (type.id)}
-                <button
-                  type="button"
-                  onclick={() => toggleType(type.id)}
-                  class="rounded-full border px-3 py-1 text-xs transition-colors {selectedTypeIds.includes(type.id)
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : selectedTypeIds.length >= 2
-                      ? 'cursor-not-allowed border-gray-100 text-gray-300'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-400'}"
-                  disabled={!selectedTypeIds.includes(type.id) && selectedTypeIds.length >= 2}
-                >
-                  {type.name}
-                </button>
+            <div class="grid grid-cols-3 gap-2">
+              {#each prosthesisGroups as group}
+                <div class="rounded-md border border-gray-100 bg-gray-50 p-2.5">
+                  <p class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    {group.label}
+                  </p>
+                  <div class="flex flex-col gap-1.5">
+                    {#each group.types as type (type.id)}
+                      <button
+                        type="button"
+                        onclick={() => toggleType(type.id)}
+                        title={type.name}
+                        class="rounded border px-2.5 py-1.5 text-left text-xs transition-colors {selectedTypeIds.includes(type.id)
+                          ? 'border-blue-500 bg-blue-50 font-medium text-blue-700'
+                          : selectedTypeIds.length >= 2
+                            ? 'cursor-not-allowed border-gray-100 bg-white text-gray-300'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'}"
+                        disabled={!selectedTypeIds.includes(type.id) && selectedTypeIds.length >= 2}
+                      >
+                        {shortLabel(type.name)}
+                      </button>
+                    {/each}
+                  </div>
+                </div>
               {/each}
             </div>
             <!-- Valores enviados via hidden inputs -->

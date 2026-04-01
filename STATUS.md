@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-01 (reformulação do sistema de agendamento — grid de slots, almoço configurável, bug de horário corrigido)
+**Última atualização:** 2026-04-01 (UX: seleção de prótese agrupada por Superior / Inferior / Outros no formulário de encaminhamento)
 
 ---
 
@@ -135,10 +135,10 @@
 ### 9. UX/UI por ator — requisitos mapeados no discovery
 
 #### Dentista (FASE 1)
+- [x] Seleção de tipo de prótese agrupada por Superior / Inferior / Outros — reduz erro de solicitação
 - [ ] Auto-save de rascunho no formulário de encaminhamento (evitar perda em interrupções)
 - [ ] Sticky state da unidade ativa por sessão (não reconfirmar a cada cadastro)
 - [ ] Histórico do paciente acessível via modal (sem sair da tela de cadastro)
-- [ ] Sugestão das próteses mais comuns como atalho de seleção
 - [ ] Campo de justificativa condicional na avaliação de conformidade (só aparece se "Não conforme")
 
 #### Atendente (Painel principal)
