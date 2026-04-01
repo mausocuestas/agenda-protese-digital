@@ -29,6 +29,30 @@
 
   // Controla qual unidade responsável está com o select de adição aberto
   let addingForUnit = $state<number | null>(null)
+
+  // Controla a visibilidade do formulário de novo agendamento do terceirizado
+  let showAddSchedule = $state(false)
+
+  // Fecha formulário de agendamento após adicionar com sucesso
+  $effect(() => {
+    if (form && 'scheduleAdded' in form && form.scheduleAdded) showAddSchedule = false
+  })
+
+  // Formata data YYYY-MM-DD para exibição em pt-BR
+  function formatDate(isoDate: string): string {
+    const [year, month, day] = isoDate.split('-')
+    return `${day}/${month}/${year}`
+  }
+
+  // Formata HH:MM:SS (vindo do banco) para HH:MM
+  function formatTime(t: string): string {
+    return t.slice(0, 5)
+  }
+
+  // Verifica se uma data já passou (para destaque visual)
+  function isPast(isoDate: string): boolean {
+    return isoDate < new Date().toISOString().slice(0, 10)
+  }
 </script>
 
 <div class="min-h-screen bg-gray-50">
@@ -195,6 +219,144 @@
           </div>
         {:else}
           <p class="text-sm text-gray-400">Nenhum tipo de prótese cadastrado.</p>
+        {/each}
+      </div>
+    </section>
+
+    <!-- Seção: Agenda do Terceirizado -->
+    <section>
+      <div class="mb-3 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
+            Agenda do Terceirizado
+          </h2>
+          <p class="mt-0.5 text-xs text-gray-400">
+            Dias e unidades em que o terceirizado atende — usados para liberar vagas de agendamento.
+          </p>
+        </div>
+        <button
+          onclick={() => (showAddSchedule = !showAddSchedule)}
+          class="shrink-0 text-xs font-medium text-blue-600 transition-colors hover:text-blue-800"
+        >
+          {showAddSchedule ? 'Cancelar' : '+ Adicionar dia'}
+        </button>
+      </div>
+
+      {#if form && 'scheduleError' in form && form.scheduleError}
+        <p class="mb-3 text-sm text-red-600">{form.scheduleError}</p>
+      {/if}
+
+      <!-- Formulário de novo agendamento -->
+      {#if showAddSchedule}
+        <div class="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-4">
+          <form
+            method="POST"
+            action="?/addSchedule"
+            use:enhance={({ formElement }) =>
+              async ({ update }) => {
+                await update()
+                formElement.reset()
+              }}
+            class="grid grid-cols-2 gap-3 sm:grid-cols-4"
+          >
+            <div class="col-span-2 sm:col-span-1">
+              <label for="scheduledDate" class="mb-1 block text-xs font-medium text-gray-600">
+                Data
+              </label>
+              <input
+                id="scheduledDate"
+                name="scheduledDate"
+                type="date"
+                required
+                class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
+              />
+            </div>
+
+            <div class="col-span-2 sm:col-span-1">
+              <label for="scheduleUnit" class="mb-1 block text-xs font-medium text-gray-600">
+                Unidade
+              </label>
+              <select
+                id="scheduleUnit"
+                name="healthUnitId"
+                required
+                class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
+              >
+                <option value="">Selecione...</option>
+                {#each data.allUnits as unit (unit.id)}
+                  <option value={unit.id}>{unit.label}</option>
+                {/each}
+              </select>
+            </div>
+
+            <div>
+              <label for="startTime" class="mb-1 block text-xs font-medium text-gray-600">
+                Início
+              </label>
+              <input
+                id="startTime"
+                name="startTime"
+                type="time"
+                required
+                class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label for="endTime" class="mb-1 block text-xs font-medium text-gray-600">
+                Fim
+              </label>
+              <input
+                id="endTime"
+                name="endTime"
+                type="time"
+                required
+                class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
+              />
+            </div>
+
+            <div class="col-span-2 flex items-end gap-2 sm:col-span-4">
+              <button
+                type="submit"
+                class="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                Adicionar
+              </button>
+            </div>
+          </form>
+        </div>
+      {/if}
+
+      <!-- Lista de agendamentos cadastrados -->
+      <div class="space-y-2">
+        {#each data.schedules as schedule (schedule.id)}
+          <div
+            class="flex items-center justify-between rounded-lg border bg-white px-4 py-3 {isPast(schedule.scheduledDate) ? 'border-gray-100 opacity-60' : 'border-gray-200'}"
+          >
+            <div class="min-w-0">
+              <span class="text-sm font-medium text-gray-800">
+                {formatDate(schedule.scheduledDate)}
+              </span>
+              <span class="mx-2 text-gray-300">·</span>
+              <span class="text-sm text-gray-600">{schedule.healthUnitLabel}</span>
+              <span class="mx-2 text-gray-300">·</span>
+              <span class="text-xs text-gray-400">
+                {formatTime(schedule.startTime)} – {formatTime(schedule.endTime)}
+              </span>
+            </div>
+            <form method="POST" action="?/removeSchedule" use:enhance class="shrink-0 ml-4">
+              <input type="hidden" name="id" value={schedule.id} />
+              <button
+                type="submit"
+                title="Remover agendamento"
+                class="text-xs text-gray-300 transition-colors hover:text-red-500"
+              >
+                ×
+              </button>
+            </form>
+          </div>
+        {:else}
+          <p class="text-sm text-gray-400">Nenhum dia de atendimento configurado.</p>
         {/each}
       </div>
     </section>

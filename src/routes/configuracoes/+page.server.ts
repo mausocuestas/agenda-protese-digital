@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types'
 import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { systemConfigs, prosthesisTypes, unitResponsibilities, estabelecimentos } from '$lib/server/db/index'
+import { systemConfigs, prosthesisTypes, unitResponsibilities, estabelecimentos, thirdPartySchedules } from '$lib/server/db/index'
 import { eq, asc, inArray, and } from 'drizzle-orm'
 
 // IDs fixos das unidades responsáveis (Centro-UBS e Imperial-USF)
@@ -80,7 +80,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   if (!user) redirect(302, '/login')
   if (user.role !== 'coordinator') redirect(302, '/fila')
 
-  const [rows, types, responsibleUnits, allLinks, allUnits] = await Promise.all([
+  const [rows, types, responsibleUnits, allLinks, allUnits, schedules] = await Promise.all([
     db.select().from(systemConfigs),
     db.select().from(prosthesisTypes).orderBy(asc(prosthesisTypes.name)),
     // Nomes das unidades responsáveis
@@ -105,6 +105,19 @@ export const load: PageServerLoad = async ({ locals }) => {
       .from(estabelecimentos)
       .where(eq(estabelecimentos.isActive, true))
       .orderBy(asc(estabelecimentos.estabelecimento)),
+    // Todos os agendamentos do terceirizado com nome da unidade
+    db
+      .select({
+        id: thirdPartySchedules.id,
+        scheduledDate: thirdPartySchedules.scheduledDate,
+        startTime: thirdPartySchedules.startTime,
+        endTime: thirdPartySchedules.endTime,
+        healthUnitId: thirdPartySchedules.healthUnitId,
+        healthUnitLabel: estabelecimentos.estabelecimento,
+      })
+      .from(thirdPartySchedules)
+      .innerJoin(estabelecimentos, eq(thirdPartySchedules.healthUnitId, estabelecimentos.id))
+      .orderBy(asc(thirdPartySchedules.scheduledDate), asc(estabelecimentos.estabelecimento)),
   ])
 
   const valueMap = Object.fromEntries(rows.map((r) => [r.key, r.value]))
@@ -121,7 +134,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     designatedUnits: allLinks.filter((l) => l.responsibleUnitId === rId),
   }))
 
-  return { configs, prosthesisTypes: types, unitGroups, allUnits }
+  return { configs, prosthesisTypes: types, unitGroups, allUnits, schedules }
 }
 
 export const actions: Actions = {
@@ -243,6 +256,67 @@ export const actions: Actions = {
     }
 
     return { unitLinkAdded: true }
+  },
+
+  // Adiciona um dia de atendimento do terceirizado em uma unidade
+  addSchedule: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user || user.role !== 'coordinator') return fail(403, { scheduleError: 'Sem permissão' })
+
+    const data = await request.formData()
+    const healthUnitId = parseInt(data.get('healthUnitId') as string, 10)
+    const scheduledDate = (data.get('scheduledDate') as string)?.trim()
+    const startTime = (data.get('startTime') as string)?.trim()
+    const endTime = (data.get('endTime') as string)?.trim()
+
+    if (!healthUnitId || isNaN(healthUnitId)) {
+      return fail(400, { scheduleError: 'Selecione uma unidade de saúde' })
+    }
+    if (!scheduledDate || !/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate)) {
+      return fail(400, { scheduleError: 'Data inválida' })
+    }
+    if (!startTime || !endTime) {
+      return fail(400, { scheduleError: 'Horário de início e fim são obrigatórios' })
+    }
+    if (startTime >= endTime) {
+      return fail(400, { scheduleError: 'Horário de fim deve ser após o início' })
+    }
+
+    try {
+      await db.insert(thirdPartySchedules).values({
+        healthUnitId,
+        scheduledDate,
+        startTime,
+        endTime,
+        createdBy: user.appId,
+      })
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message.includes('unique')) {
+        return fail(400, { scheduleError: 'Já existe um agendamento para essa unidade nessa data' })
+      }
+      return fail(500, { scheduleError: 'Erro ao salvar agendamento. Tente novamente.' })
+    }
+
+    return { scheduleAdded: true }
+  },
+
+  // Remove um dia de atendimento do terceirizado
+  removeSchedule: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user || user.role !== 'coordinator') return fail(403, { scheduleError: 'Sem permissão' })
+
+    const data = await request.formData()
+    const id = parseInt(data.get('id') as string, 10)
+
+    if (!id || isNaN(id)) return fail(400, { scheduleError: 'Agendamento inválido' })
+
+    try {
+      await db.delete(thirdPartySchedules).where(eq(thirdPartySchedules.id, id))
+    } catch {
+      return fail(500, { scheduleError: 'Erro ao remover agendamento. Tente novamente.' })
+    }
+
+    return { scheduleRemoved: true }
   },
 
   // Remove o vínculo entre uma unidade designada e sua responsável

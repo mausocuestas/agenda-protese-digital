@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-03-31 (unidades responsáveis em /configuracoes; unidades adicionais de dentistas em /usuarios)
+**Última atualização:** 2026-03-31 (agenda semanal do terceirizado em /configuracoes)
 
 ---
 
@@ -71,10 +71,10 @@
 - [x] Seed inicial das 18 vínculos (9 por unidade responsável) — concluído na sessão anterior
 
 ### 3. Configuração da agenda semanal do terceirizado
-- [ ] Seção "Agenda do Terceirizado" na tela `/configuracoes`
-- [ ] Formulário: data + unidade + horário início/fim
-- [ ] Listagem e exclusão de datas configuradas
-- [ ] Confirmar se `/fila/[id]/agendar` já consome `third_party_schedules`
+- [x] Seção "Agenda do Terceirizado" na tela `/configuracoes`
+- [x] Formulário: data + unidade + horário início/fim
+- [x] Listagem e exclusão de datas configuradas
+- [x] Confirmar se `/fila/[id]/agendar` já consome `third_party_schedules` — confirmado (linhas 52 e 126)
 
 ### 4. Job automático — Reavaliação Pendente
 - [ ] Cron job diário (Vercel Cron)
