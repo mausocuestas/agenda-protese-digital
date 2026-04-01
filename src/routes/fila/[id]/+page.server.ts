@@ -3,7 +3,7 @@ import { redirect, error, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
 import { eq, isNull, inArray, asc } from 'drizzle-orm'
 import { calcAge, daysSince } from '$lib/utils'
-import { patients, referrals, estabelecimentos, prosthesisTypes, referralProsthesisTypes, appointments, thirdPartySchedules } from '$lib/server/db/index'
+import { patients, referrals, referralNotes, estabelecimentos, prosthesisTypes, referralProsthesisTypes, appointments, thirdPartySchedules } from '$lib/server/db/index'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const user = locals.user
@@ -316,5 +316,53 @@ export const actions: Actions = {
       .where(eq(appointments.id, appointmentId))
 
     return { apptUpdated: true }
+  },
+
+  // Reativa encaminhamento em 'pending_reassessment' — dentista ou coordenador
+  // introduction_date é preservada: o paciente não perde posição na fila
+  reactivate: async ({ locals, params, request }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+
+    if (!['coordinator', 'dentist'].includes(user.role)) {
+      return fail(403, { reactivateError: 'Sem permissão' })
+    }
+
+    const referralId = parseInt(params.id, 10)
+    if (isNaN(referralId)) return fail(400, { reactivateError: 'ID inválido' })
+
+    const data = await request.formData()
+    const justification = (data.get('justification') as string)?.trim()
+    if (!justification) {
+      return fail(422, { reactivateError: 'Justificativa obrigatória' })
+    }
+
+    const referral = await db.query.referrals.findFirst({
+      where: (r, { and, eq: eqFn }) => and(eqFn(r.id, referralId), isNull(r.deletedAt)),
+    })
+
+    if (!referral) return fail(404, { reactivateError: 'Encaminhamento não encontrado' })
+    if (referral.status !== 'pending_reassessment') {
+      return fail(422, { reactivateError: 'Encaminhamento não está aguardando reavaliação' })
+    }
+
+    // Não-coordenador só pode reativar encaminhamentos da sua unidade
+    if (user.role !== 'coordinator' && referral.healthUnitId !== user.defaultUnitId) {
+      return fail(403, { reactivateError: 'Acesso negado' })
+    }
+
+    await db
+      .update(referrals)
+      .set({ status: 'active', updatedAt: new Date() })
+      .where(eq(referrals.id, referralId))
+
+    // Registra justificativa como nota para rastreabilidade
+    await db.insert(referralNotes).values({
+      referralId,
+      body: `Reavaliação: ${justification}`,
+      createdBy: user.id,
+    })
+
+    return { reactivated: true }
   },
 }

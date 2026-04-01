@@ -77,10 +77,38 @@
 - [x] Listagem e exclusão de datas configuradas
 - [x] Confirmar se `/fila/[id]/agendar` já consome `third_party_schedules` — confirmado (linhas 52 e 126)
 
-### 4. Job automático — Reavaliação Pendente
-- [ ] Cron job diário (Vercel Cron)
-- [ ] Query: `referrals` com `status = 'active'` há mais de N meses → `pending_reassessment`
-- [ ] Ação no `/fila/[id]` para dentista reativar preservando `introduction_date`
+### 4. Job automático — Reavaliação Pendente ✅
+<!-- Arquitetura: Vercel Cron é apenas o disparador. A lógica vive num endpoint SvelteKit comum,
+     independente de fornecedor. Para migrar de provedor, basta trocar quem chama o endpoint. -->
+
+#### Endpoint desacoplado — `/api/jobs/reassessment` (SvelteKit API route)
+- [ ] Criar `src/routes/api/jobs/reassessment/+server.ts`
+  - Aceita `GET` com header `Authorization: Bearer $CRON_SECRET`
+  - Rejeita com 401 se o token não bater (evita execução não autorizada)
+  - Executa a query de transição de status (ver abaixo)
+  - Retorna JSON com contagem de registros afetados e timestamp
+
+#### Query de transição
+- [ ] Buscar `referrals` com `status = 'active'` e `updated_at < NOW() - INTERVAL 'N months'`
+  (N vem de `system_configs`, chave `reassessment_threshold_months`)
+- [ ] Atualizar esses registros para `status = 'pending_reassessment'`
+- [ ] Registrar em `status_history` (audit trail) para cada transição
+
+#### Disparador (Vercel Cron)
+- [x] Adicionar em `vercel.json`:
+  ```json
+  "crons": [{ "path": "/api/jobs/reassessment", "schedule": "0 6 * * *" }]
+  ```
+  Às 6h diariamente, a Vercel faz `GET /api/jobs/reassessment`.
+  Qualquer outro serviço (GitHub Actions, cron-job.org, Railway) pode substituir esse papel
+  chamando o mesmo endpoint com o mesmo token — sem alterar código.
+
+#### Ação de reativação (dentista)
+- [x] Ação `reactivate` no `/fila/[id]`
+  - Volta `status` para `'active'`
+  - Preserva `introduction_date` original (não reinicia fila)
+  - Exige justificativa obrigatória (salva como `referral_notes`)
+  - Banner amarelo visível para dentista e coordenador quando status = `pending_reassessment`
 
 ### 5. Flag automático de atraso
 - [ ] Verificar se `/fila` já computa `daysSince(lastAppointment) > intervalDays`

@@ -38,6 +38,9 @@
     selectedEditScheduleId = match ? String(match.id) : ''
   }
 
+  // Controla exibição do formulário de reavaliação
+  let reactivating = $state(false)
+
   // Fecha os formulários após salvar com sucesso
   $effect(() => {
     if (form && 'updateSuccess' in form && form.updateSuccess) editingPatient = false
@@ -147,6 +150,67 @@
           <span class="rounded-md bg-purple-50 px-3 py-1 text-sm font-semibold text-purple-700">Atrasado (+180 dias)</span>
         {/if}
       </div>
+    {/if}
+
+    <!-- Banner de reavaliação pendente — visível para dentista e coordenador -->
+    {#if data.referral.status === 'pending_reassessment' && (data.user?.role === 'coordinator' || data.user?.role === 'dentist')}
+      <section class="rounded-lg border border-yellow-300 bg-yellow-50">
+        <div class="px-5 py-4">
+          <p class="font-semibold text-yellow-800">Reavaliação necessária</p>
+          <p class="mt-1 text-sm text-yellow-700">
+            Este encaminhamento está bloqueado para agendamento porque ficou sem movimentação por muito tempo.
+            O dentista deve confirmar que o paciente ainda necessita da prótese antes de reativar.
+          </p>
+
+          {#if !reactivating}
+            <button
+              onclick={() => (reactivating = true)}
+              class="mt-3 rounded-md bg-yellow-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-yellow-800"
+            >
+              Registrar reavaliação
+            </button>
+          {:else}
+            <form
+              method="POST"
+              action="?/reactivate"
+              use:enhance
+              class="mt-4 space-y-3"
+            >
+              <div>
+                <label for="justification" class="block text-sm font-medium text-yellow-800">
+                  Justificativa <span class="text-red-500">*</span>
+                </label>
+                <textarea
+                  id="justification"
+                  name="justification"
+                  required
+                  rows="3"
+                  placeholder="Descreva a situação atual do paciente e confirme a necessidade da prótese..."
+                  class="mt-1 w-full rounded-md border border-yellow-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-yellow-500 focus:outline-none"
+                ></textarea>
+              </div>
+              {#if form && 'reactivateError' in form && form.reactivateError}
+                <p class="text-sm text-red-600">{form.reactivateError}</p>
+              {/if}
+              <div class="flex items-center gap-3">
+                <button
+                  type="submit"
+                  class="rounded-md bg-yellow-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-yellow-800"
+                >
+                  Confirmar e reativar
+                </button>
+                <button
+                  type="button"
+                  onclick={() => (reactivating = false)}
+                  class="rounded-md px-4 py-1.5 text-sm text-yellow-700 hover:bg-yellow-100"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          {/if}
+        </div>
+      </section>
     {/if}
 
     <!-- Dados do paciente -->
