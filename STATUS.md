@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-01 (filtro de unidades em 3 níveis para atendente na fila; job de reavaliação e badges marcados como concluídos)
+**Última atualização:** 2026-04-01 (flag de atraso migrado para system_configs; card de atrasados no dashboard)
 
 ---
 
@@ -101,9 +101,11 @@
   - Exige justificativa obrigatória (salva como `referral_notes`)
   - Banner amarelo visível para dentista e coordenador quando status = `pending_reassessment`
 
-### 5. Flag automático de atraso
-- [ ] Verificar se `/fila` já computa `daysSince(lastAppointment) > intervalDays`
-- [ ] Se não: adicionar campo `isDelayed` na query + badge na fila e no dashboard
+### 5. Flag automático de atraso ✅
+- [x] `isDelayed` já existia na query da fila — limiar hardcoded em 180 dias
+- [x] Limiar migrado para `system_configs` (`delay_days = 180`) — configurável pelo coordenador em `/configuracoes`
+- [x] Badge `ATR` e filtro na fila já existiam e funcionam; label do botão agora é dinâmico (`+{delayDays}d`)
+- [x] Dashboard: nova query `delayedCount` + card "Atrasados (+Xd)" na seção Fila (urgente quando > 0)
 
 ### 6. Seed de dados iniciais ✅
 - [x] Arquivo de seed (`src/lib/server/db/seed.ts`)

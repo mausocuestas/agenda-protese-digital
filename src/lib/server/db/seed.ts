@@ -80,6 +80,7 @@ async function seed() {
     ['contact_flag_attempts',   '3'],   // tentativas para alerta amarelo
     ['whatsapp_deadline_hours', '24'],  // prazo de resposta WhatsApp (horas)
     ['elderly_age_threshold',   '80'],  // idade mínima para flag ⚠️ Idoso
+    ['delay_days',              '180'], // dias na fila para flag ATR Atrasado
   ]
 
   for (const [key, value] of configs) {

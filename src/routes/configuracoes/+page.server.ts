@@ -73,6 +73,14 @@ const CONFIG_DEFS = [
     min: 50,
     max: 80,
   },
+  {
+    key: 'delay_days',
+    label: 'Dias para Flag de Atraso',
+    description: 'Dias na fila sem agendamento a partir dos quais o encaminhamento é sinalizado como atrasado',
+    unit: 'dias',
+    min: 30,
+    max: 730,
+  },
 ] as const
 
 export const load: PageServerLoad = async ({ locals }) => {

@@ -57,6 +57,14 @@
       visible: data.canSeeFila,
       urgent: data.filaCount > 20,
     },
+    {
+      label: `Atrasados (+${data.delayDays}d)`,
+      count: data.delayedCount,
+      href: '/fila',
+      description: 'Pacientes com espera acima do limiar configurado',
+      visible: data.canSeeFila,
+      urgent: data.delayedCount > 0,
+    },
   ])
 
   const custodiaCards = $derived([

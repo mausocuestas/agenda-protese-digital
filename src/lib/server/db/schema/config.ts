@@ -24,7 +24,8 @@ const proteseSchema = pgSchema('protese')
 //   contact_max_attempts      → "5"
 //   contact_flag_attempts     → "3"
 //   whatsapp_deadline_hours   → "24"
-//   elderly_age_threshold     → "60"
+//   elderly_age_threshold     → "80"
+//   delay_days                → "180"
 export const systemConfigs = proteseSchema.table(
   'system_configs',
   {

@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types'
 import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { referrals, estabelecimentos, unitResponsibilities } from '$lib/server/db/index'
+import { referrals, estabelecimentos, unitResponsibilities, systemConfigs } from '$lib/server/db/index'
 import { isNull, inArray, eq, desc, asc } from 'drizzle-orm'
 import { calcAge, daysSince } from '$lib/utils'
 
@@ -11,6 +11,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   const isCoordinator = user.role === 'coordinator'
   const isAttendant = user.role === 'attendant'
+
+  // Limiar de atraso configurável — padrão 180 dias
+  const delayConfig = await db.query.systemConfigs.findFirst({
+    where: (c, { eq: eqFn }) => eqFn(c.key, 'delay_days'),
+    columns: { value: true },
+  })
+  const delayDays = parseInt(delayConfig?.value ?? '180', 10)
 
   // filterUnitIds: null = sem filtro (todas as unidades)
   let filterUnitIds: number[] | null = null
@@ -107,7 +114,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       unitName: r.healthUnit.estabelecimento,
       introductionDate: r.introductionDate,
       daysInQueue,
-      isDelayed: daysInQueue >= 180,
+      isDelayed: daysInQueue >= delayDays,
       status: r.status,
       isSuspended: r.status === 'suspended',
       hasOmbudsmanFlag: r.hasOmbudsmanFlag,
@@ -126,6 +133,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     activeUnitId: filterUnitIds?.length === 1 ? (filterUnitIds[0] ?? null) : null,
     activeUnitName,
     scope,
+    delayDays,
   }
 }
 

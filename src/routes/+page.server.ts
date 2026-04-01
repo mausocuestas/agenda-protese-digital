@@ -7,8 +7,9 @@ import {
   conformityAssessments,
   coordinationApprovals,
   satisfactionCalls,
+  systemConfigs,
 } from '$lib/server/db/index'
-import { and, eq, isNull, isNotNull, inArray, gte, count, sql } from 'drizzle-orm'
+import { and, eq, isNull, isNotNull, inArray, gte, lte, count, sql } from 'drizzle-orm'
 
 // Gera os últimos N meses em formato YYYY-MM, do mais antigo ao mais recente
 function lastMonths(n: number): string[] {
@@ -37,9 +38,23 @@ export const load: PageServerLoad = async ({ locals }) => {
   const canCallSatisfaction = ['attendant', 'coordinator'].includes(user.role)
 
   // ── Fila ────────────────────────────────────────────────────────────────────
+  const delayConfig = await db.query.systemConfigs.findFirst({
+    where: (c, { eq: eqFn }) => eqFn(c.key, 'delay_days'),
+    columns: { value: true },
+  })
+  const delayDays = parseInt(delayConfig?.value ?? '180', 10)
+
+  // Data de corte: hoje - delayDays
+  const delayCutoff = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() - delayDays)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })()
+
   let filaCount = 0
+  let delayedCount = 0
   if (canSeeFila) {
-    const [row] = await db
+    const [rowTotal] = await db
       .select({ count: count() })
       .from(referrals)
       .where(
@@ -49,7 +64,20 @@ export const load: PageServerLoad = async ({ locals }) => {
           unitId ? eq(referrals.healthUnitId, unitId) : undefined
         )
       )
-    filaCount = Number(row?.count ?? 0)
+    filaCount = Number(rowTotal?.count ?? 0)
+
+    const [rowDelayed] = await db
+      .select({ count: count() })
+      .from(referrals)
+      .where(
+        and(
+          inArray(referrals.status, ['active', 'pending_reassessment']),
+          isNull(referrals.deletedAt),
+          lte(referrals.introductionDate, delayCutoff),
+          unitId ? eq(referrals.healthUnitId, unitId) : undefined
+        )
+      )
+    delayedCount = Number(rowDelayed?.count ?? 0)
   }
 
   // ── Custódia — aguardando confecção ─────────────────────────────────────────
@@ -194,6 +222,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     canApprove,
     canCallSatisfaction,
     filaCount,
+    delayedCount,
+    delayDays,
     awaitingReadyCount,
     awaitingReceivalCount,
     awaitingConformityCount,

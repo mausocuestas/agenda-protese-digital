@@ -160,7 +160,7 @@
           ? 'bg-purple-600 text-white'
           : 'bg-purple-50 text-purple-600 hover:bg-purple-100'}"
       >
-        ATR Atrasado (+180d)
+        ATR Atrasado (+{data.delayDays}d)
       </button>
       <button
         onclick={() => toggleFlagFilter('sus')}
@@ -286,7 +286,7 @@
 
             <!-- Tempo na fila -->
             <td class="px-4 py-3">
-              <span class="text-gray-700 {item.daysInQueue >= 180 ? 'font-semibold text-purple-700' : ''}">
+              <span class="text-gray-700 {item.isDelayed ? 'font-semibold text-purple-700' : ''}">
                 {formatQueueTime(item.daysInQueue)}
               </span>
             </td>
