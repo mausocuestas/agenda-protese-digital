@@ -217,7 +217,7 @@
 
           {#if editOutcomeValue === 'attended'}
             <div>
-              <p class="text-sm font-medium text-gray-700">Estimativa para confecção da próxima peça</p>
+              <p class="text-sm font-medium text-gray-700">Estimativa de duração da próxima consulta</p>
               <div class="mt-2 flex gap-5">
                 <label class="flex cursor-pointer items-center gap-2">
                   <input type="radio" name="nextDurationEstimate" value="30"
@@ -264,7 +264,7 @@
           {/if}
           {#if data.appointment.nextDurationEstimate}
             <p class="mt-2 text-sm text-gray-600">
-              Estimativa para próxima peça:
+              Estimativa duração próxima consulta:
               <strong>{data.appointment.nextDurationEstimate} minutos</strong>
             </p>
           {/if}
@@ -332,7 +332,7 @@
           {#if selectedOutcome === 'attended'}
             <div>
               <p class="text-sm font-medium text-gray-700">
-                Estimativa para confecção da próxima peça
+                Estimativa de duração da próxima consulta
               </p>
               <div class="mt-2 flex gap-5">
                 <label class="flex cursor-pointer items-center gap-2">
