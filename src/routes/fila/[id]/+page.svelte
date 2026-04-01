@@ -16,12 +16,37 @@
   // Status selecionado no formulário de edição do encaminhamento (para mostrar campo motivo)
   let editReferralStatus = $state(data.referral.status)
 
+  // Controla qual consulta está sendo editada (id da consulta ou null)
+  let editingAppointmentId = $state<number | null>(null)
+  // Agenda selecionada no formulário de edição de consulta
+  let selectedEditScheduleId = $state<string>('')
+
+  let selectedEditSchedule = $derived(
+    data.schedules.find((s) => s.id === parseInt(selectedEditScheduleId))
+  )
+
+  // Abre o formulário de edição pré-selecionando a agenda atual da consulta
+  function openEditForm(appt: { id: number; scheduledDate: string; healthUnitId: number }) {
+    if (editingAppointmentId === appt.id) {
+      editingAppointmentId = null
+      return
+    }
+    editingAppointmentId = appt.id
+    const match = data.schedules.find(
+      (s) => s.scheduledDate === appt.scheduledDate && s.unitId === appt.healthUnitId
+    )
+    selectedEditScheduleId = match ? String(match.id) : ''
+  }
+
   // Fecha os formulários após salvar com sucesso
   $effect(() => {
     if (form && 'updateSuccess' in form && form.updateSuccess) editingPatient = false
   })
   $effect(() => {
     if (form && 'referralUpdated' in form && form.referralUpdated) editingReferral = false
+  })
+  $effect(() => {
+    if (form && 'apptUpdated' in form && form.apptUpdated) editingAppointmentId = null
   })
 
   // Formata data ISO para dd/mm/aaaa
@@ -469,6 +494,14 @@
                     >
                       Registrar resultado →
                     </a>
+                    {#if data.canEditAppointment}
+                      <button
+                        onclick={() => openEditForm(appt)}
+                        class="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        {editingAppointmentId === appt.id ? 'Cancelar edição' : 'Editar'}
+                      </button>
+                    {/if}
                   {/if}
                   {#if appt.prosthesisReadyAt}
                     <span class="text-xs text-gray-400">Prótese pronta: {fmtDateTime(appt.prosthesisReadyAt)}</span>
@@ -478,6 +511,89 @@
                   {/if}
                 </div>
               </div>
+
+              <!-- Formulário de edição inline — visível apenas para a consulta selecionada -->
+              {#if editingAppointmentId === appt.id}
+                <form
+                  method="POST"
+                  action="?/update_appointment"
+                  use:enhance
+                  class="mt-4 space-y-4 border-t border-gray-100 pt-4"
+                >
+                  <input type="hidden" name="appointmentId" value={appt.id} />
+
+                  <!-- Seleção de agenda (data + unidade) -->
+                  <div>
+                    <label for="editScheduleId-{appt.id}" class="block text-sm font-medium text-gray-700">
+                      Data e local da visita do protético <span class="text-red-500">*</span>
+                    </label>
+                    {#if data.schedules.length === 0}
+                      <p class="mt-1.5 text-sm text-gray-400">Nenhuma agenda cadastrada no momento.</p>
+                    {:else}
+                      <select
+                        id="editScheduleId-{appt.id}"
+                        name="scheduleId"
+                        required
+                        bind:value={selectedEditScheduleId}
+                        class="mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
+                      >
+                        <option value="" disabled>Selecione uma data disponível</option>
+                        {#each data.schedules as s (s.id)}
+                          <option value={s.id}>
+                            {fmtDate(s.scheduledDate)} — {s.unitName}
+                            ({fmtTime(s.startTime)}–{fmtTime(s.endTime)})
+                          </option>
+                        {/each}
+                      </select>
+                    {/if}
+                  </div>
+
+                  <!-- Horário -->
+                  <div>
+                    <label for="editTime-{appt.id}" class="block text-sm font-medium text-gray-700">
+                      Horário <span class="text-red-500">*</span>
+                    </label>
+                    {#if selectedEditSchedule}
+                      <p class="mt-0.5 text-xs text-gray-500">
+                        Janela disponível: {fmtTime(selectedEditSchedule.startTime)} às {fmtTime(selectedEditSchedule.endTime)}
+                      </p>
+                    {/if}
+                    <input
+                      id="editTime-{appt.id}"
+                      name="scheduledTime"
+                      type="time"
+                      required
+                      value={appt.scheduledTime.substring(0, 5)}
+                      min={selectedEditSchedule?.startTime.slice(0, 5)}
+                      max={selectedEditSchedule?.endTime.slice(0, 5)}
+                      disabled={!selectedEditScheduleId}
+                      class="mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                    />
+                  </div>
+
+                  <!-- Erro -->
+                  {#if form && 'apptError' in form && form.apptError}
+                    <p class="text-sm text-red-600">{form.apptError}</p>
+                  {/if}
+
+                  <!-- Ações -->
+                  <div class="flex items-center gap-3">
+                    <button
+                      type="submit"
+                      class="rounded-md bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
+                    >
+                      Salvar alterações
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => (editingAppointmentId = null)}
+                      class="rounded-md px-4 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              {/if}
             </li>
           {/each}
         </ul>

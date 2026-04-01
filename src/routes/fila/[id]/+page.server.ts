@@ -1,9 +1,9 @@
 import type { PageServerLoad, Actions } from './$types'
 import { redirect, error, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { eq, isNull } from 'drizzle-orm'
+import { eq, isNull, inArray, asc } from 'drizzle-orm'
 import { calcAge, daysSince } from '$lib/utils'
-import { patients, referrals, estabelecimentos, prosthesisTypes, referralProsthesisTypes } from '$lib/server/db/index'
+import { patients, referrals, estabelecimentos, prosthesisTypes, referralProsthesisTypes, appointments, thirdPartySchedules } from '$lib/server/db/index'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const user = locals.user
@@ -51,15 +51,66 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const canEditPatient = ['coordinator', 'attendant', 'dentist'].includes(user.role)
   const canEditReferral = user.role === 'coordinator'
+  const canEditAppointment = user.role === 'coordinator' || user.role === 'attendant'
 
   // Todos os tipos de prótese disponíveis — usados no select de edição do encaminhamento
   const allProsthesisTypes = canEditReferral
     ? await db.select({ id: prosthesisTypes.id, name: prosthesisTypes.name }).from(prosthesisTypes).orderBy(prosthesisTypes.name)
     : []
 
+  // Agendas do terceirizado — usadas no formulário de edição de consulta
+  type ApptSlot = { scheduledTime: string; patientName: string; appointmentNumber: number }
+  let schedules: Array<{
+    id: number; scheduledDate: string; startTime: string; endTime: string
+    unitId: number; unitName: string; slots: ApptSlot[]
+  }> = []
+
+  if (canEditAppointment) {
+    const schedulesRaw = await db.query.thirdPartySchedules.findMany({
+      with: { healthUnit: true },
+      orderBy: (s, { asc: ascOp }) => [ascOp(s.scheduledDate)],
+    })
+
+    if (schedulesRaw.length > 0) {
+      const dates = [...new Set(schedulesRaw.map((s) => s.scheduledDate))]
+      const booked = await db
+        .select({
+          scheduledDate: appointments.scheduledDate,
+          healthUnitId: appointments.healthUnitId,
+          scheduledTime: appointments.scheduledTime,
+          appointmentNumber: appointments.appointmentNumber,
+          patientName: patients.fullName,
+        })
+        .from(appointments)
+        .innerJoin(referrals, eq(appointments.referralId, referrals.id))
+        .innerJoin(patients, eq(referrals.patientId, patients.id))
+        .where(inArray(appointments.scheduledDate, dates))
+        .orderBy(asc(appointments.scheduledTime))
+
+      const apptsByKey: Record<string, ApptSlot[]> = {}
+      for (const b of booked) {
+        const key = `${b.scheduledDate}__${b.healthUnitId}`
+        if (!apptsByKey[key]) apptsByKey[key] = []
+        apptsByKey[key].push({ scheduledTime: b.scheduledTime, patientName: b.patientName, appointmentNumber: b.appointmentNumber })
+      }
+
+      schedules = schedulesRaw.map((s) => ({
+        id: s.id,
+        scheduledDate: s.scheduledDate,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        unitId: s.healthUnitId,
+        unitName: s.healthUnit.estabelecimento,
+        slots: apptsByKey[`${s.scheduledDate}__${s.healthUnitId}`] ?? [],
+      }))
+    }
+  }
+
   return {
     canEditPatient,
     canEditReferral,
+    canEditAppointment,
+    schedules,
     units,
     allProsthesisTypes,
     referral: {
@@ -97,6 +148,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     appointments: row.appointments.map((a) => ({
       id: a.id,
       appointmentNumber: a.appointmentNumber,
+      healthUnitId: a.healthUnitId,
       unitName: a.healthUnit.estabelecimento,
       scheduledDate: a.scheduledDate,
       scheduledTime: a.scheduledTime,
@@ -209,5 +261,60 @@ export const actions: Actions = {
     )
 
     return { referralUpdated: true }
+  },
+
+  // Edita data, horário e unidade de uma consulta sem desfecho — coordenador e atendente
+  update_appointment: async ({ locals, params, request }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+    if (user.role !== 'coordinator' && user.role !== 'attendant') {
+      return fail(403, { apptError: 'Sem permissão' })
+    }
+
+    const referralId = parseInt(params.id, 10)
+    if (isNaN(referralId)) return fail(400, { apptError: 'ID inválido' })
+
+    const data = await request.formData()
+    const appointmentId = parseInt(data.get('appointmentId') as string, 10)
+    const scheduleId = parseInt(data.get('scheduleId') as string, 10)
+    const scheduledTime = (data.get('scheduledTime') as string)?.trim()
+
+    if (isNaN(appointmentId) || isNaN(scheduleId) || !scheduledTime) {
+      return fail(422, { apptError: 'Preencha todos os campos obrigatórios' })
+    }
+
+    // Valida que a consulta pertence a este encaminhamento e não tem desfecho registrado
+    const appt = await db.query.appointments.findFirst({
+      where: (a, { and, eq: eqFn }) => and(eqFn(a.id, appointmentId), eqFn(a.referralId, referralId)),
+    })
+
+    if (!appt) return fail(404, { apptError: 'Consulta não encontrada' })
+    if (appt.outcome) {
+      return fail(422, { apptError: 'Não é possível editar uma consulta com resultado já registrado' })
+    }
+
+    // Valida a agenda selecionada
+    const schedule = await db.query.thirdPartySchedules.findFirst({
+      where: eq(thirdPartySchedules.id, scheduleId),
+    })
+    if (!schedule) return fail(422, { apptError: 'Agenda não encontrada' })
+
+    if (scheduledTime < schedule.startTime || scheduledTime > schedule.endTime) {
+      return fail(422, {
+        apptError: `Horário fora da janela do terceirizado (${schedule.startTime.slice(0, 5)}–${schedule.endTime.slice(0, 5)})`,
+      })
+    }
+
+    await db
+      .update(appointments)
+      .set({
+        scheduledDate: schedule.scheduledDate,
+        scheduledTime,
+        healthUnitId: schedule.healthUnitId,
+        updatedAt: new Date(),
+      })
+      .where(eq(appointments.id, appointmentId))
+
+    return { apptUpdated: true }
   },
 }

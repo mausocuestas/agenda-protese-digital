@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-03-31 (agenda semanal do terceirizado em /configuracoes)
+**Última atualização:** 2026-04-01 (edição de consultas em /fila/[id])
 
 ---
 
@@ -44,6 +44,7 @@
 | FASE 2 — Agendamento com registro de tentativas de contato | `src/routes/fila/[id]/agendar/` |
 | FASE 2 — Previsão de tempo para próxima consulta ao agendar retorno | `src/routes/fila/[id]/agendar/` |
 | FASE 3/4 — Registro de consulta pelo terceirizado | `src/routes/fila/[id]/consulta/[apptId]/` |
+| Edição de consultas agendadas (sem desfecho) — coord./atendente | `src/routes/fila/[id]/` |
 | FASE 4 — Custódia de próteses (pronta → recebida) | `src/routes/custodia/` |
 | FASE 5 — Conformidade, aprovação coord, ligação de satisfação, consulta na unidade | `src/routes/qualidade/` |
 | Agenda do terceirizado (lista do dia) | `src/routes/minha-agenda/` |
