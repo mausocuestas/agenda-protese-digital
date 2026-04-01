@@ -54,6 +54,12 @@
     const value = (e.target as HTMLSelectElement).value
     goto(value ? `/fila?unit=${value}` : '/fila')
   }
+
+  const scopeOptions = [
+    { value: 'mine', label: 'Minha unidade' },
+    { value: 'responsible', label: 'Sob responsabilidade' },
+    { value: 'all', label: 'Todas' },
+  ] as const
 </script>
 
 <div class="min-h-screen bg-gray-50">
@@ -87,6 +93,22 @@
               <option value={unit.id} selected={unit.id === data.activeUnitId}>{unit.name}</option>
             {/each}
           </select>
+        {/if}
+
+        <!-- Filtro de escopo de unidades — apenas para atendente -->
+        {#if data.isAttendant}
+          <div class="flex gap-1 rounded-lg bg-gray-100 p-1">
+            {#each scopeOptions as opt}
+              <button
+                class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors {data.scope === opt.value
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'}"
+                onclick={() => goto(opt.value === 'mine' ? '/fila' : `/fila?scope=${opt.value}`)}
+              >
+                {opt.label}
+              </button>
+            {/each}
+          </div>
         {/if}
 
         <!-- Filtro de status -->

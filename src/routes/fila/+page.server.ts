@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types'
 import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { referrals, estabelecimentos } from '$lib/server/db/index'
+import { referrals, estabelecimentos, unitResponsibilities } from '$lib/server/db/index'
 import { isNull, inArray, eq, desc, asc } from 'drizzle-orm'
 import { calcAge, daysSince } from '$lib/utils'
 
@@ -10,16 +10,36 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   if (!user) redirect(302, '/login')
 
   const isCoordinator = user.role === 'coordinator'
+  const isAttendant = user.role === 'attendant'
 
-  // Coordenador pode filtrar por unidade via query param; outros ficam fixos na sua unidade
-  let filterUnitId: number | null = null
+  // filterUnitIds: null = sem filtro (todas as unidades)
+  let filterUnitIds: number[] | null = null
   let activeUnitName = 'Fila de Encaminhamentos'
+  let scope: 'mine' | 'responsible' | 'all' = 'mine'
 
   if (isCoordinator) {
+    // Coordenador filtra por unidade via query param ou vê todas
     const param = url.searchParams.get('unit')
-    filterUnitId = param ? parseInt(param, 10) : null
+    filterUnitIds = param ? [parseInt(param, 10)] : null
+  } else if (isAttendant) {
+    // Atendente tem 3 níveis de visibilidade controlados por ?scope=
+    const scopeParam = url.searchParams.get('scope')
+    scope = scopeParam === 'responsible' || scopeParam === 'all' ? scopeParam : 'mine'
+
+    if (scope === 'mine') {
+      filterUnitIds = user.defaultUnitId ? [user.defaultUnitId] : null
+    } else if (scope === 'responsible' && user.defaultUnitId) {
+      // Busca todas as unidades designadas à unidade responsável do atendente
+      const designations = await db
+        .select({ designatedUnitId: unitResponsibilities.designatedUnitId })
+        .from(unitResponsibilities)
+        .where(eq(unitResponsibilities.responsibleUnitId, user.defaultUnitId))
+      filterUnitIds = designations.length > 0 ? designations.map((d) => d.designatedUnitId) : null
+    }
+    // scope === 'all': filterUnitIds permanece null
   } else {
-    filterUnitId = user.defaultUnitId
+    // Dentista e terceirizado: sempre fixos na unidade padrão
+    filterUnitIds = user.defaultUnitId ? [user.defaultUnitId] : null
   }
 
   // Carrega lista de unidades ativas — usada pelo seletor do coordenador
@@ -33,28 +53,34 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   }
 
   // Resolve o nome da unidade ativa para o título da página
-  if (filterUnitId !== null) {
+  if (filterUnitIds !== null && filterUnitIds.length === 1) {
+    const unitId = filterUnitIds[0]!
     if (isCoordinator) {
-      const found = units.find((u) => u.id === filterUnitId)
+      const found = units.find((u) => u.id === unitId)
       activeUnitName = found?.name ?? 'Unidade desconhecida'
     } else {
       const row = await db
         .select({ name: estabelecimentos.estabelecimento })
         .from(estabelecimentos)
-        .where(eq(estabelecimentos.id, filterUnitId))
+        .where(eq(estabelecimentos.id, unitId))
         .limit(1)
       activeUnitName = row[0]?.name ?? 'Minha unidade'
     }
+  } else if (isAttendant && scope === 'responsible') {
+    activeUnitName = 'Sob minha responsabilidade'
   }
 
   const rows = await db.query.referrals.findMany({
     where: (r, { and, eq: eqOp }) => {
       const statusFilter = inArray(r.status, ['active', 'pending_reassessment', 'suspended'])
       const notDeleted = isNull(r.deletedAt)
-      if (filterUnitId !== null) {
-        return and(statusFilter, notDeleted, eqOp(r.healthUnitId, filterUnitId))
+      if (filterUnitIds === null) {
+        return and(statusFilter, notDeleted)
       }
-      return and(statusFilter, notDeleted)
+      if (filterUnitIds.length === 1) {
+        return and(statusFilter, notDeleted, eqOp(r.healthUnitId, filterUnitIds[0]!))
+      }
+      return and(statusFilter, notDeleted, inArray(r.healthUnitId, filterUnitIds))
     },
     with: {
       patient: true,
@@ -94,10 +120,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   return {
     items,
     isCoordinator,
+    isAttendant,
     canCreateReferral: user.role === 'dentist' || user.role === 'coordinator',
     units,
-    activeUnitId: filterUnitId,
+    activeUnitId: filterUnitIds?.length === 1 ? (filterUnitIds[0] ?? null) : null,
     activeUnitName,
+    scope,
   }
 }
 

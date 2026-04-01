@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-01 (UX: seleção de prótese agrupada por Superior / Inferior / Outros no formulário de encaminhamento)
+**Última atualização:** 2026-04-01 (filtro de unidades em 3 níveis para atendente na fila; job de reavaliação e badges marcados como concluídos)
 
 ---
 
@@ -83,29 +83,18 @@
 <!-- Arquitetura: Vercel Cron é apenas o disparador. A lógica vive num endpoint SvelteKit comum,
      independente de fornecedor. Para migrar de provedor, basta trocar quem chama o endpoint. -->
 
-#### Endpoint desacoplado — `/api/jobs/reassessment` (SvelteKit API route)
-- [ ] Criar `src/routes/api/jobs/reassessment/+server.ts`
+#### Endpoint desacoplado — `/api/jobs/reassessment` (SvelteKit API route) ✅
+- [x] `src/routes/api/jobs/reassessment/+server.ts` — implementado e funcional
   - Aceita `GET` com header `Authorization: Bearer $CRON_SECRET`
-  - Rejeita com 401 se o token não bater (evita execução não autorizada)
-  - Executa a query de transição de status (ver abaixo)
-  - Retorna JSON com contagem de registros afetados e timestamp
+  - Rejeita com 401 se o token não bater
+  - Lê limiar de meses de `system_configs` (chave `reassessment_months`, padrão 6)
+  - Atualiza `status = 'pending_reassessment'` nos `referrals` elegíveis
+  - Retorna JSON `{ affected, months, ranAt }`
 
-#### Query de transição
-- [ ] Buscar `referrals` com `status = 'active'` e `updated_at < NOW() - INTERVAL 'N months'`
-  (N vem de `system_configs`, chave `reassessment_threshold_months`)
-- [ ] Atualizar esses registros para `status = 'pending_reassessment'`
-- [ ] Registrar em `status_history` (audit trail) para cada transição
+#### Disparador (Vercel Cron) ✅
+- [x] Configurado em `vercel.json`: `"0 6 * * *"` → `GET /api/jobs/reassessment`
 
-#### Disparador (Vercel Cron)
-- [x] Adicionar em `vercel.json`:
-  ```json
-  "crons": [{ "path": "/api/jobs/reassessment", "schedule": "0 6 * * *" }]
-  ```
-  Às 6h diariamente, a Vercel faz `GET /api/jobs/reassessment`.
-  Qualquer outro serviço (GitHub Actions, cron-job.org, Railway) pode substituir esse papel
-  chamando o mesmo endpoint com o mesmo token — sem alterar código.
-
-#### Ação de reativação (dentista)
+#### Ação de reativação (dentista) ✅
 - [x] Ação `reactivate` no `/fila/[id]`
   - Volta `status` para `'active'`
   - Preserva `introduction_date` original (não reinicia fila)
@@ -142,14 +131,14 @@
 - [ ] Campo de justificativa condicional na avaliação de conformidade (só aparece se "Não conforme")
 
 #### Atendente (Painel principal)
-- [ ] Notificações por badge por módulo: novas próteses · atrasos · pendências de contato
-- [ ] Filtro de unidades com 3 níveis: "Minha unidade" · "Sob minha responsabilidade" · "Todas"
+- [x] Notificações por badge por módulo: Fila · Custódia · Qualidade — `src/lib/server/notifications.ts` + sidebar em `+layout.svelte`
+- [x] Filtro de unidades com 3 níveis: "Minha unidade" · "Sob responsabilidade" · "Todas" — toggle em `/fila` via `?scope=`, consulta `unit_responsibilities` no servidor
 - [ ] Verificar se modal de contato é suficientemente leve (sem abrir ficha completa)
 
 #### Coordenador (Dashboard)
 - [ ] Cálculo de previsibilidade: capacidade semanal vs. ocupação → "X vagas disponíveis para novos pacientes"
 - [ ] Campo configurável de limite de pacientes por semana (`system_configs`)
-- [ ] Central de notificações: não conformidades pendentes · atrasos sistêmicos · contatos esgotados
+- [x] Central de notificações: não conformidades pendentes · aprovações pendentes · ligações de satisfação pendentes — coberto pelos badges de Qualidade e Custódia
 
 #### Terceirizado (`/minha-agenda`)
 - [ ] Verificar se botões de ação (Compareceu / Faltou / Finalizado / Recusado) são suficientemente grandes e touch-friendly
