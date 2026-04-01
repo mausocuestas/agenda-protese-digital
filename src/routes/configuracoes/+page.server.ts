@@ -1,8 +1,11 @@
 import type { PageServerLoad, Actions } from './$types'
 import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { systemConfigs, prosthesisTypes } from '$lib/server/db/index'
-import { eq, asc } from 'drizzle-orm'
+import { systemConfigs, prosthesisTypes, unitResponsibilities, estabelecimentos } from '$lib/server/db/index'
+import { eq, asc, inArray, and } from 'drizzle-orm'
+
+// IDs fixos das unidades responsáveis (Centro-UBS e Imperial-USF)
+const RESPONSIBLE_UNIT_IDS = [12, 17] as const
 
 // Parâmetros configuráveis pelo coordenador, com metadados para a UI
 const CONFIG_DEFS = [
@@ -77,9 +80,31 @@ export const load: PageServerLoad = async ({ locals }) => {
   if (!user) redirect(302, '/login')
   if (user.role !== 'coordinator') redirect(302, '/fila')
 
-  const [rows, types] = await Promise.all([
+  const [rows, types, responsibleUnits, allLinks, allUnits] = await Promise.all([
     db.select().from(systemConfigs),
     db.select().from(prosthesisTypes).orderBy(asc(prosthesisTypes.name)),
+    // Nomes das unidades responsáveis
+    db
+      .select({ id: estabelecimentos.id, label: estabelecimentos.estabelecimento })
+      .from(estabelecimentos)
+      .where(inArray(estabelecimentos.id, [...RESPONSIBLE_UNIT_IDS])),
+    // Todos os vínculos com o nome da unidade designada
+    db
+      .select({
+        responsibleUnitId: unitResponsibilities.responsibleUnitId,
+        designatedUnitId: unitResponsibilities.designatedUnitId,
+        designatedLabel: estabelecimentos.estabelecimento,
+      })
+      .from(unitResponsibilities)
+      .innerJoin(estabelecimentos, eq(unitResponsibilities.designatedUnitId, estabelecimentos.id))
+      .where(inArray(unitResponsibilities.responsibleUnitId, [...RESPONSIBLE_UNIT_IDS]))
+      .orderBy(asc(estabelecimentos.estabelecimento)),
+    // Todas as unidades ativas para o dropdown de adição
+    db
+      .select({ id: estabelecimentos.id, label: estabelecimentos.estabelecimento })
+      .from(estabelecimentos)
+      .where(eq(estabelecimentos.isActive, true))
+      .orderBy(asc(estabelecimentos.estabelecimento)),
   ])
 
   const valueMap = Object.fromEntries(rows.map((r) => [r.key, r.value]))
@@ -89,7 +114,14 @@ export const load: PageServerLoad = async ({ locals }) => {
     value: valueMap[def.key] ?? '',
   }))
 
-  return { configs, prosthesisTypes: types }
+  // Agrupa vínculos por unidade responsável para facilitar a renderização
+  const unitGroups = RESPONSIBLE_UNIT_IDS.map((rId) => ({
+    responsibleUnitId: rId,
+    responsibleLabel: responsibleUnits.find((u) => u.id === rId)?.label ?? `Unidade ${rId}`,
+    designatedUnits: allLinks.filter((l) => l.responsibleUnitId === rId),
+  }))
+
+  return { configs, prosthesisTypes: types, unitGroups, allUnits }
 }
 
 export const actions: Actions = {
@@ -181,5 +213,69 @@ export const actions: Actions = {
     }
 
     return { typeEdited: true }
+  },
+
+  // Vincula uma unidade designada a uma unidade responsável
+  addUnitLink: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user || user.role !== 'coordinator') return fail(403, { unitLinkError: 'Sem permissão' })
+
+    const data = await request.formData()
+    const responsibleUnitId = parseInt(data.get('responsibleUnitId') as string, 10)
+    const designatedUnitId = parseInt(data.get('designatedUnitId') as string, 10)
+
+    if (!responsibleUnitId || isNaN(responsibleUnitId) || !designatedUnitId || isNaN(designatedUnitId)) {
+      return fail(400, { unitLinkError: 'Selecione uma unidade válida' })
+    }
+
+    // Impede vincular unidade não-responsável
+    if (!RESPONSIBLE_UNIT_IDS.includes(responsibleUnitId as (typeof RESPONSIBLE_UNIT_IDS)[number])) {
+      return fail(400, { unitLinkError: 'Unidade responsável inválida' })
+    }
+
+    try {
+      await db.insert(unitResponsibilities).values({ responsibleUnitId, designatedUnitId })
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message.includes('unique')) {
+        return fail(400, { unitLinkError: 'Vínculo já existe' })
+      }
+      return fail(500, { unitLinkError: 'Erro ao adicionar vínculo. Tente novamente.' })
+    }
+
+    return { unitLinkAdded: true }
+  },
+
+  // Remove o vínculo entre uma unidade designada e sua responsável
+  removeUnitLink: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user || user.role !== 'coordinator') return fail(403, { unitLinkError: 'Sem permissão' })
+
+    const data = await request.formData()
+    const responsibleUnitId = parseInt(data.get('responsibleUnitId') as string, 10)
+    const designatedUnitId = parseInt(data.get('designatedUnitId') as string, 10)
+
+    if (!responsibleUnitId || isNaN(responsibleUnitId) || !designatedUnitId || isNaN(designatedUnitId)) {
+      return fail(400, { unitLinkError: 'Vínculo inválido' })
+    }
+
+    // Impede remover o vínculo da unidade responsável com ela mesma
+    if (responsibleUnitId === designatedUnitId) {
+      return fail(400, { unitLinkError: 'Não é possível remover a unidade responsável de si mesma' })
+    }
+
+    try {
+      await db
+        .delete(unitResponsibilities)
+        .where(
+          and(
+            eq(unitResponsibilities.responsibleUnitId, responsibleUnitId),
+            eq(unitResponsibilities.designatedUnitId, designatedUnitId)
+          )
+        )
+    } catch {
+      return fail(500, { unitLinkError: 'Erro ao remover vínculo. Tente novamente.' })
+    }
+
+    return { unitLinkRemoved: true }
   },
 }

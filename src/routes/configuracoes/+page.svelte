@@ -26,6 +26,9 @@
   $effect(() => {
     if (form && 'typeAdded' in form && form.typeAdded) showAddType = false
   })
+
+  // Controla qual unidade responsável está com o select de adição aberto
+  let addingForUnit = $state<number | null>(null)
 </script>
 
 <div class="min-h-screen bg-gray-50">
@@ -192,6 +195,101 @@
           </div>
         {:else}
           <p class="text-sm text-gray-400">Nenhum tipo de prótese cadastrado.</p>
+        {/each}
+      </div>
+    </section>
+
+    <!-- Seção: Unidades Responsáveis -->
+    <section>
+      <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        Unidades Responsáveis
+      </h2>
+      <p class="mb-4 text-xs text-gray-400">
+        Cada unidade responsável visualiza pacientes de si mesma e de suas unidades designadas.
+      </p>
+
+      {#if form && 'unitLinkError' in form && form.unitLinkError}
+        <p class="mb-3 text-sm text-red-600">{form.unitLinkError}</p>
+      {/if}
+
+      <div class="space-y-4">
+        {#each data.unitGroups as group (group.responsibleUnitId)}
+          {@const alreadyLinked = group.designatedUnits.map((d) => d.designatedUnitId)}
+          {@const available = data.allUnits.filter((u) => !alreadyLinked.includes(u.id))}
+          <div class="rounded-lg border border-gray-200 bg-white px-4 py-4">
+            <p class="mb-3 text-sm font-medium text-gray-800">{group.responsibleLabel}</p>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <!-- Tags das unidades designadas — própria não é removível -->
+              {#each group.designatedUnits as link (link.designatedUnitId)}
+                {#if link.designatedUnitId === group.responsibleUnitId}
+                  <span class="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-700">
+                    {link.designatedLabel}
+                  </span>
+                {:else}
+                  <form method="POST" action="?/removeUnitLink" use:enhance>
+                    <input type="hidden" name="responsibleUnitId" value={group.responsibleUnitId} />
+                    <input type="hidden" name="designatedUnitId" value={link.designatedUnitId} />
+                    <button
+                      type="submit"
+                      title="Remover vínculo"
+                      class="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 transition-colors hover:bg-red-100 hover:text-red-600"
+                    >
+                      {link.designatedLabel}
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </form>
+                {/if}
+              {/each}
+
+              <!-- Botão/select para adicionar nova unidade designada -->
+              {#if addingForUnit === group.responsibleUnitId}
+                <form
+                  method="POST"
+                  action="?/addUnitLink"
+                  use:enhance={({ formElement }) =>
+                    async ({ update }) => {
+                      addingForUnit = null
+                      await update()
+                      formElement.reset()
+                    }}
+                  class="flex items-center gap-1"
+                >
+                  <input type="hidden" name="responsibleUnitId" value={group.responsibleUnitId} />
+                  <select
+                    name="designatedUnitId"
+                    class="rounded-md border border-gray-200 px-2 py-0.5 text-xs text-gray-700 focus:border-blue-400 focus:outline-none"
+                  >
+                    <option value="">Selecione...</option>
+                    {#each available as unit (unit.id)}
+                      <option value={unit.id}>{unit.label}</option>
+                    {/each}
+                  </select>
+                  <button
+                    type="submit"
+                    class="rounded-md bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white transition-colors hover:bg-blue-700"
+                  >
+                    Adicionar
+                  </button>
+                  <button
+                    type="button"
+                    onclick={() => (addingForUnit = null)}
+                    class="text-xs text-gray-400 transition-colors hover:text-gray-600"
+                  >
+                    Cancelar
+                  </button>
+                </form>
+              {:else if available.length > 0}
+                <button
+                  type="button"
+                  onclick={() => (addingForUnit = group.responsibleUnitId)}
+                  class="rounded-full border border-dashed border-gray-300 px-2.5 py-0.5 text-xs text-gray-400 transition-colors hover:border-blue-400 hover:text-blue-500"
+                >
+                  + Adicionar unidade
+                </button>
+              {/if}
+            </div>
+          </div>
         {/each}
       </div>
     </section>
