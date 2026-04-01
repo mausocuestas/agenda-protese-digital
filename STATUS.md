@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-03-31 (seed de dados iniciais criado e executado)
+**Última atualização:** 2026-03-31 (unidades responsáveis em /configuracoes; unidades adicionais de dentistas em /usuarios)
 
 ---
 
@@ -61,14 +61,14 @@
 ### 1. Gerenciamento de usuários
 - [x] Rota `/usuarios` — lista de usuários ativos/inativos
 - [x] Ação de ativar/desativar (`is_active`)
-- [ ] Formulário de criação/edição de usuário (nome, e-mail, perfil, unidade padrão)
-- [ ] Gerenciamento de unidades adicionais do dentista (`user_units`)
+- [x] Formulário de criação/edição de usuário (nome, e-mail, perfil, unidade padrão)
+- [x] Gerenciamento de unidades adicionais do dentista (`user_units`) — tags clicáveis na edição inline
 
 ### 2. Configuração das unidades responsáveis
-- [ ] Seção "Unidades Responsáveis" na tela `/configuracoes`
-- [ ] Exibir Centro-UBS e Imperial-USF com suas unidades designadas
-- [ ] Adicionar / remover unidades designadas
-- [ ] Seed inicial das 16 vínculos (8 por unidade responsável)
+- [x] Seção "Unidades Responsáveis" na tela `/configuracoes`
+- [x] Exibir Centro-UBS e Imperial-USF com suas unidades designadas
+- [x] Adicionar / remover unidades designadas
+- [x] Seed inicial das 18 vínculos (9 por unidade responsável) — concluído na sessão anterior
 
 ### 3. Configuração da agenda semanal do terceirizado
 - [ ] Seção "Agenda do Terceirizado" na tela `/configuracoes`
