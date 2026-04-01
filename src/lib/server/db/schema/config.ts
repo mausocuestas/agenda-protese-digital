@@ -1,6 +1,7 @@
 import {
   pgSchema,
   integer,
+  smallint,
   varchar,
   text,
   date,
@@ -53,6 +54,11 @@ export const thirdPartySchedules = proteseSchema.table(
     scheduledDate: date('scheduled_date', { mode: 'string' }).notNull(),
     startTime: time('start_time').notNull(),
     endTime: time('end_time').notNull(),
+    // Horário de almoço configurável — null significa sem bloqueio de almoço
+    lunchStart: time('lunch_start'),
+    lunchEnd: time('lunch_end'),
+    // Duração padrão dos slots: 30 ou 60 minutos
+    defaultDuration: smallint('default_duration').notNull().default(60),
     createdBy: integer('created_by')
       .notNull()
       .references(() => users.id),

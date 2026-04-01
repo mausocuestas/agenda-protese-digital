@@ -55,6 +55,8 @@ export const appointments = proteseSchema.table(
     // Obrigatório quando outcome = 'refused'
     refusedReason: text('refused_reason'),
     attendedAt: timestamp('attended_at', { withTimezone: true }),
+    // Duração ocupada por este agendamento no grid de slots: 30 | 60 minutos
+    scheduledDuration: smallint('scheduled_duration'),
     // Estimativa de tempo de confecção da próxima peça: 30 | 60 minutos
     nextDurationEstimate: smallint('next_duration_estimate'),
 

@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-01 (botão "Agendar consulta" movido para a seção Consultas em /fila/[id])
+**Última atualização:** 2026-04-01 (reformulação do sistema de agendamento — grid de slots, almoço configurável, bug de horário corrigido)
 
 ---
 
@@ -43,6 +43,7 @@
 | FASE 1 — Edição de encaminhamento (coordenador) | `src/routes/fila/[id]/` |
 | FASE 2 — Agendamento com registro de tentativas de contato | `src/routes/fila/[id]/agendar/` |
 | FASE 2 — Previsão de tempo para próxima consulta ao agendar retorno | `src/routes/fila/[id]/agendar/` |
+| FASE 2 — Grid automático de slots (horário de início inclusivo, almoço, divisão 30/60min) | `src/routes/fila/[id]/agendar/` |
 | FASE 3/4 — Registro de consulta pelo terceirizado | `src/routes/fila/[id]/consulta/[apptId]/` |
 | Edição de consultas agendadas (sem desfecho) — coord./atendente | `src/routes/fila/[id]/` |
 | FASE 4 — Custódia de próteses (pronta → recebida) | `src/routes/custodia/` |
@@ -51,6 +52,7 @@
 | Agenda semanal (visão do coordenador/atendente) | `src/routes/agenda/` |
 | Lista e edição de pacientes | `src/routes/pacientes/` |
 | Configurações — parâmetros numéricos e tipos de prótese | `src/routes/configuracoes/` |
+| Configurações — almoço e duração padrão dos slots por agenda do terceirizado | `src/routes/configuracoes/` |
 | Status suspenso na fila com toggle inline (coordenador) | `src/routes/fila/` |
 | Página de usuários — listagem e ativar/desativar (coordenador) | `src/routes/usuarios/` |
 | Módulo de notificações server-side | `src/lib/server/notifications.ts` |
@@ -177,6 +179,18 @@
 - **Canal dominante:** WhatsApp é confirmado como canal principal? Impacta prioridade de exibição no módulo de contato
 - **Política formal de priorização:** quais critérios além de ouvidoria e acidente são considerados urgência? (ex: recomendação médica, vulnerabilidade social)
 - **Idade para flag ⚠️ Idoso:** qual o limite de idade? Ainda "a definir" no documento
+
+---
+
+## Migração pendente ⚠️
+
+Após o commit desta sessão, executar obrigatoriamente:
+```bash
+pnpm db:generate   # gera migration para os novos campos
+pnpm db:push       # aplica no banco Neon
+```
+Novos campos em `third_party_schedules`: `lunch_start`, `lunch_end`, `default_duration`
+Novo campo em `appointments`: `scheduled_duration`
 
 ---
 

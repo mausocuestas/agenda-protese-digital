@@ -35,7 +35,27 @@
 
   // Fecha formulário de agendamento após adicionar com sucesso
   $effect(() => {
-    if (form && 'scheduleAdded' in form && form.scheduleAdded) showAddSchedule = false
+    if (form && 'scheduleAdded' in form && form.scheduleAdded) {
+      showAddSchedule = false
+      lunchStartInput = ''
+      lunchEndInput = ''
+    }
+  })
+
+  // Almoço: calcula lunchEnd automaticamente como lunchStart + 1 hora
+  let lunchStartInput = $state('')
+  let lunchEndInput = $state('')
+
+  $effect(() => {
+    if (!lunchStartInput) {
+      lunchEndInput = ''
+      return
+    }
+    const [h, m] = lunchStartInput.split(':').map(Number)
+    const totalMin = (h ?? 0) * 60 + (m ?? 0) + 60
+    const endH = Math.floor(totalMin / 60)
+    const endM = totalMin % 60
+    lunchEndInput = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`
   })
 
   // Formata data YYYY-MM-DD para exibição em pt-BR
@@ -257,65 +277,135 @@
                 await update()
                 formElement.reset()
               }}
-            class="grid grid-cols-2 gap-3 sm:grid-cols-4"
+            class="space-y-3"
           >
-            <div class="col-span-2 sm:col-span-1">
-              <label for="scheduledDate" class="mb-1 block text-xs font-medium text-gray-600">
-                Data
-              </label>
-              <input
-                id="scheduledDate"
-                name="scheduledDate"
-                type="date"
-                required
-                class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
-              />
+            <!-- Linha 1: Data + Unidade -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="scheduledDate" class="mb-1 block text-xs font-medium text-gray-600">
+                  Data
+                </label>
+                <input
+                  id="scheduledDate"
+                  name="scheduledDate"
+                  type="date"
+                  required
+                  class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label for="scheduleUnit" class="mb-1 block text-xs font-medium text-gray-600">
+                  Unidade
+                </label>
+                <select
+                  id="scheduleUnit"
+                  name="healthUnitId"
+                  required
+                  class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
+                >
+                  <option value="">Selecione...</option>
+                  {#each data.allUnits as unit (unit.id)}
+                    <option value={unit.id}>{unit.label}</option>
+                  {/each}
+                </select>
+              </div>
             </div>
 
-            <div class="col-span-2 sm:col-span-1">
-              <label for="scheduleUnit" class="mb-1 block text-xs font-medium text-gray-600">
-                Unidade
-              </label>
-              <select
-                id="scheduleUnit"
-                name="healthUnitId"
-                required
-                class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
-              >
-                <option value="">Selecione...</option>
-                {#each data.allUnits as unit (unit.id)}
-                  <option value={unit.id}>{unit.label}</option>
-                {/each}
-              </select>
+            <!-- Linha 2: Janela de atendimento -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="startTime" class="mb-1 block text-xs font-medium text-gray-600">
+                  Início da janela
+                </label>
+                <input
+                  id="startTime"
+                  name="startTime"
+                  type="time"
+                  required
+                  class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label for="endTime" class="mb-1 block text-xs font-medium text-gray-600">
+                  Fim da janela
+                </label>
+                <input
+                  id="endTime"
+                  name="endTime"
+                  type="time"
+                  required
+                  class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <!-- Linha 3: Almoço (opcional) -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="lunchStart" class="mb-1 block text-xs font-medium text-gray-600">
+                  Início do almoço <span class="text-gray-400">(opcional)</span>
+                </label>
+                <input
+                  id="lunchStart"
+                  name="lunchStart"
+                  type="time"
+                  bind:value={lunchStartInput}
+                  class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label for="lunchEnd" class="mb-1 block text-xs font-medium text-gray-600">
+                  Fim do almoço
+                  {#if lunchStartInput}
+                    <span class="text-gray-400">(calculado automaticamente)</span>
+                  {/if}
+                </label>
+                <input
+                  id="lunchEnd"
+                  name="lunchEnd"
+                  type="time"
+                  bind:value={lunchEndInput}
+                  disabled={!lunchStartInput}
+                  class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                />
+              </div>
+            </div>
+            {#if lunchStartInput}
+              <p class="text-xs text-gray-400">
+                Fim calculado automaticamente como +1h. Ajuste manualmente se necessário.
+              </p>
+            {/if}
+
+            <!-- Linha 4: Duração padrão dos slots -->
+            <div>
+              <p class="mb-1 text-xs font-medium text-gray-600">Duração padrão das consultas</p>
+              <div class="flex gap-4">
+                <label class="flex items-center gap-1.5 text-sm text-gray-700">
+                  <input
+                    type="radio"
+                    name="defaultDuration"
+                    value="60"
+                    checked
+                    class="accent-blue-600"
+                  />
+                  1 hora
+                </label>
+                <label class="flex items-center gap-1.5 text-sm text-gray-700">
+                  <input
+                    type="radio"
+                    name="defaultDuration"
+                    value="30"
+                    class="accent-blue-600"
+                  />
+                  30 minutos
+                </label>
+              </div>
             </div>
 
             <div>
-              <label for="startTime" class="mb-1 block text-xs font-medium text-gray-600">
-                Início
-              </label>
-              <input
-                id="startTime"
-                name="startTime"
-                type="time"
-                required
-                class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label for="endTime" class="mb-1 block text-xs font-medium text-gray-600">
-                Fim
-              </label>
-              <input
-                id="endTime"
-                name="endTime"
-                type="time"
-                required
-                class="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none"
-              />
-            </div>
-
-            <div class="col-span-2 flex items-end gap-2 sm:col-span-4">
               <button
                 type="submit"
                 class="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
@@ -334,15 +424,25 @@
             class="flex items-center justify-between rounded-lg border bg-white px-4 py-3 {isPast(schedule.scheduledDate) ? 'border-gray-100 opacity-60' : 'border-gray-200'}"
           >
             <div class="min-w-0">
-              <span class="text-sm font-medium text-gray-800">
-                {formatDate(schedule.scheduledDate)}
-              </span>
-              <span class="mx-2 text-gray-300">·</span>
-              <span class="text-sm text-gray-600">{schedule.healthUnitLabel}</span>
-              <span class="mx-2 text-gray-300">·</span>
-              <span class="text-xs text-gray-400">
-                {formatTime(schedule.startTime)} – {formatTime(schedule.endTime)}
-              </span>
+              <div class="flex flex-wrap items-center gap-x-2">
+                <span class="text-sm font-medium text-gray-800">
+                  {formatDate(schedule.scheduledDate)}
+                </span>
+                <span class="text-gray-300">·</span>
+                <span class="text-sm text-gray-600">{schedule.healthUnitLabel}</span>
+                <span class="text-gray-300">·</span>
+                <span class="text-xs text-gray-500">
+                  {formatTime(schedule.startTime)}–{formatTime(schedule.endTime)}
+                </span>
+                <span class="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
+                  {schedule.defaultDuration}min/slot
+                </span>
+              </div>
+              {#if schedule.lunchStart && schedule.lunchEnd}
+                <p class="mt-0.5 text-xs text-gray-400">
+                  Almoço: {formatTime(schedule.lunchStart)}–{formatTime(schedule.lunchEnd)}
+                </p>
+              {/if}
             </div>
             <form method="POST" action="?/removeSchedule" use:enhance class="shrink-0 ml-4">
               <input type="hidden" name="id" value={schedule.id} />

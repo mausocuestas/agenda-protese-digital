@@ -112,6 +112,9 @@ export const load: PageServerLoad = async ({ locals }) => {
         scheduledDate: thirdPartySchedules.scheduledDate,
         startTime: thirdPartySchedules.startTime,
         endTime: thirdPartySchedules.endTime,
+        lunchStart: thirdPartySchedules.lunchStart,
+        lunchEnd: thirdPartySchedules.lunchEnd,
+        defaultDuration: thirdPartySchedules.defaultDuration,
         healthUnitId: thirdPartySchedules.healthUnitId,
         healthUnitLabel: estabelecimentos.estabelecimento,
       })
@@ -268,6 +271,9 @@ export const actions: Actions = {
     const scheduledDate = (data.get('scheduledDate') as string)?.trim()
     const startTime = (data.get('startTime') as string)?.trim()
     const endTime = (data.get('endTime') as string)?.trim()
+    const lunchStart = (data.get('lunchStart') as string)?.trim() || null
+    const lunchEnd = (data.get('lunchEnd') as string)?.trim() || null
+    const defaultDuration = parseInt(data.get('defaultDuration') as string, 10)
 
     if (!healthUnitId || isNaN(healthUnitId)) {
       return fail(400, { scheduleError: 'Selecione uma unidade de saúde' })
@@ -281,6 +287,18 @@ export const actions: Actions = {
     if (startTime >= endTime) {
       return fail(400, { scheduleError: 'Horário de fim deve ser após o início' })
     }
+    if (defaultDuration !== 30 && defaultDuration !== 60) {
+      return fail(400, { scheduleError: 'Duração padrão inválida (use 30 ou 60 minutos)' })
+    }
+    // Valida almoço: se informado, lunchEnd deve ser depois de lunchStart e dentro da janela
+    if (lunchStart && lunchEnd) {
+      if (lunchStart >= lunchEnd) {
+        return fail(400, { scheduleError: 'Fim do almoço deve ser após o início' })
+      }
+      if (lunchStart < startTime || lunchEnd > endTime) {
+        return fail(400, { scheduleError: 'Horário de almoço deve estar dentro da janela de atendimento' })
+      }
+    }
 
     try {
       await db.insert(thirdPartySchedules).values({
@@ -288,6 +306,9 @@ export const actions: Actions = {
         scheduledDate,
         startTime,
         endTime,
+        lunchStart,
+        lunchEnd,
+        defaultDuration,
         createdBy: user.appId,
       })
     } catch (e: unknown) {

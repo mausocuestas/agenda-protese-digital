@@ -2,7 +2,8 @@ import type { PageServerLoad, Actions } from './$types'
 import { redirect, error, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
 import { appointments, thirdPartySchedules, referrals, patients } from '$lib/server/db/index'
-import { eq, isNull, inArray, asc } from 'drizzle-orm'
+import { eq, isNull, inArray, asc, and } from 'drizzle-orm'
+import { generateSlots, validateSlot } from '$lib/slots'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const user = locals.user
@@ -49,22 +50,31 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const prevDurationEstimate = lastAttended?.nextDurationEstimate ?? null
 
   // Todas as agendas do terceirizado (passadas e futuras) — necessário para lançamentos retroativos
-  const schedulesWithUnit = await db.query.thirdPartySchedules.findMany({
+  const schedulesRaw = await db.query.thirdPartySchedules.findMany({
     with: { healthUnit: true },
     orderBy: (s, { asc }) => [asc(s.scheduledDate)],
   })
 
-  // Carrega pacientes já agendados em cada data — evita conflito de horário
-  type ApptSlot = { scheduledTime: string; patientName: string; appointmentNumber: number }
-  const apptsByKey: Record<string, ApptSlot[]> = {}
+  // Carrega consultas já agendadas em cada data com duração ocupada
+  type BookedAppt = {
+    scheduledDate: string
+    healthUnitId: number
+    scheduledTime: string
+    scheduledDuration: number | null
+    appointmentNumber: number
+    patientName: string
+  }
 
-  if (schedulesWithUnit.length > 0) {
-    const dates = [...new Set(schedulesWithUnit.map((s) => s.scheduledDate))]
-    const booked = await db
+  let booked: BookedAppt[] = []
+
+  if (schedulesRaw.length > 0) {
+    const dates = [...new Set(schedulesRaw.map((s) => s.scheduledDate))]
+    booked = await db
       .select({
         scheduledDate: appointments.scheduledDate,
         healthUnitId: appointments.healthUnitId,
         scheduledTime: appointments.scheduledTime,
+        scheduledDuration: appointments.scheduledDuration,
         appointmentNumber: appointments.appointmentNumber,
         patientName: patients.fullName,
       })
@@ -73,17 +83,46 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       .innerJoin(patients, eq(referrals.patientId, patients.id))
       .where(inArray(appointments.scheduledDate, dates))
       .orderBy(asc(appointments.scheduledTime))
-
-    for (const row of booked) {
-      const key = `${row.scheduledDate}__${row.healthUnitId}`
-      if (!apptsByKey[key]) apptsByKey[key] = []
-      apptsByKey[key].push({
-        scheduledTime: row.scheduledTime,
-        patientName: row.patientName,
-        appointmentNumber: row.appointmentNumber,
-      })
-    }
   }
+
+  // Agrupa consultas por chave data__unidade
+  const apptsByKey: Record<string, BookedAppt[]> = {}
+  for (const row of booked) {
+    const key = `${row.scheduledDate}__${row.healthUnitId}`
+    if (!apptsByKey[key]) apptsByKey[key] = []
+    apptsByKey[key].push(row)
+  }
+
+  // Gera os slots disponíveis para cada agenda
+  const schedules = schedulesRaw.map((s) => {
+    const existingAppts = apptsByKey[`${s.scheduledDate}__${s.healthUnitId}`] ?? []
+    const slots = generateSlots({
+      startTime: s.startTime,
+      endTime: s.endTime,
+      lunchStart: s.lunchStart,
+      lunchEnd: s.lunchEnd,
+      defaultDuration: s.defaultDuration,
+      existingAppointments: existingAppts.map((a) => ({
+        scheduledTime: a.scheduledTime,
+        scheduledDuration: a.scheduledDuration,
+        patientName: a.patientName,
+        appointmentNumber: a.appointmentNumber,
+      })),
+    })
+
+    return {
+      id: s.id,
+      scheduledDate: s.scheduledDate,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      lunchStart: s.lunchStart,
+      lunchEnd: s.lunchEnd,
+      defaultDuration: s.defaultDuration,
+      unitId: s.healthUnitId,
+      unitName: s.healthUnit.estabelecimento,
+      slots,
+    }
+  })
 
   return {
     referralId,
@@ -91,15 +130,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     unitName: referral.healthUnit.estabelecimento,
     nextAppointmentNumber,
     prevDurationEstimate,
-    schedules: schedulesWithUnit.map((s) => ({
-      id: s.id,
-      scheduledDate: s.scheduledDate,
-      startTime: s.startTime,
-      endTime: s.endTime,
-      unitId: s.healthUnitId,
-      unitName: s.healthUnit.estabelecimento,
-      slots: apptsByKey[`${s.scheduledDate}__${s.healthUnitId}`] ?? [],
-    })),
+    schedules,
   }
 }
 
@@ -117,12 +148,13 @@ export const actions: Actions = {
     const formData = await request.formData()
     const scheduleId = parseInt(formData.get('scheduleId') as string, 10)
     const scheduledTime = (formData.get('scheduledTime') as string)?.trim()
+    const scheduledDuration = parseInt(formData.get('scheduledDuration') as string, 10)
 
-    if (isNaN(scheduleId) || !scheduledTime) {
-      return fail(422, { message: 'Preencha todos os campos obrigatórios' })
+    if (isNaN(scheduleId) || !scheduledTime || isNaN(scheduledDuration)) {
+      return fail(422, { message: 'Selecione um slot de horário' })
     }
 
-    // Valida se o horário está dentro da janela da agenda
+    // Carrega a agenda para validação
     const schedule = await db.query.thirdPartySchedules.findFirst({
       where: eq(thirdPartySchedules.id, scheduleId),
       with: { healthUnit: true },
@@ -130,10 +162,35 @@ export const actions: Actions = {
 
     if (!schedule) return fail(422, { message: 'Agenda não encontrada' })
 
-    if (scheduledTime < schedule.startTime || scheduledTime > schedule.endTime) {
-      return fail(422, {
-        message: `Horário fora da janela do terceirizado (${schedule.startTime.slice(0, 5)}–${schedule.endTime.slice(0, 5)})`,
-      })
+    // Normaliza horário para HH:MM antes de comparar (banco retorna HH:MM:SS)
+    const timeHHMM = scheduledTime.slice(0, 5)
+
+    // Valida janela + almoço usando a função utilitária
+    const validationError = validateSlot(
+      timeHHMM,
+      scheduledDuration,
+      schedule.startTime,
+      schedule.endTime,
+      schedule.lunchStart,
+      schedule.lunchEnd,
+    )
+    if (validationError) return fail(422, { message: validationError })
+
+    // Verifica conflito de horário na mesma data/unidade
+    const conflict = await db
+      .select({ id: appointments.id })
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.scheduledDate, schedule.scheduledDate),
+          eq(appointments.healthUnitId, schedule.healthUnitId),
+          eq(appointments.scheduledTime, scheduledTime),
+        )
+      )
+      .limit(1)
+
+    if (conflict.length > 0) {
+      return fail(422, { message: 'Já existe uma consulta agendada para este horário' })
     }
 
     // Conta consultas existentes para determinar o número
@@ -148,6 +205,7 @@ export const actions: Actions = {
       healthUnitId: schedule.healthUnitId,
       scheduledDate: schedule.scheduledDate,
       scheduledTime,
+      scheduledDuration,
       createdBy: user.appId,
     })
 
