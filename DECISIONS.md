@@ -188,3 +188,16 @@
 - `schema.ts` único — convenção do template CLAUDE.md, mas inadequado para este volume
 **Trade-off aceito**: Mais arquivos para abrir; mitigado pelo `index.ts` como ponto único de importação.
 **Revisável quando**: Nunca há motivo para regredir para arquivo único neste tamanho.
+
+---
+
+## 2026-04-01: Estratégia de migração de schema — ALTER TABLE direto via MCP
+
+**Decisão**: Mudanças de schema são aplicadas com `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` via MCP Neon, nunca via `pnpm db:push`.
+**Motivo**: O banco `saude_workspace` contém tabelas legadas em português (`pacientes`, `consultas`, `semanas`, `finalizados`, etc.) de uma versão anterior do sistema que foi reescrita. O Drizzle desconhece essas tabelas — ao rodar `db:push`, compara o schema TypeScript com o banco real e propõe `DROP SCHEMA protese` (26 tabelas) para recriar tudo do zero. Isso causaria perda total de dados.
+**Alternativas descartadas**:
+- `pnpm db:push` — propõe DROP destrutivo; perigoso enquanto houver tabelas legadas no schema
+- `pnpm db:migrate` com o `0000_` gerado — tentaria `CREATE TABLE` em tabelas que já existem; quebraria com erro "relation already exists"
+- Limpar tabelas legadas primeiro — possível no futuro, mas requer confirmação explícita de que não há dados relevantes nelas
+**Trade-off aceito**: Drizzle Kit perde o papel de gerenciador de migrations neste projeto por enquanto; compensado pela segurança total dos dados e pelo acesso direto via MCP.
+**Revisável quando**: As tabelas legadas forem removidas do banco e o `0000_` for marcado como aplicado na tabela `__drizzle_migrations`, permitindo retomar o fluxo normal de `db:generate` + `db:migrate`.

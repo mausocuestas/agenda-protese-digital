@@ -247,6 +247,8 @@ Tipos válidos: `feat` · `fix` · `chore` · `refactor` · `docs` · `test` · 
 - Soft delete: filtrar sempre com `.where(isNull(tabela.deletedAt))`
 - Neon + OAuth: usar `127.0.0.1` no redirect URI em dev, não `localhost`
 - pnpm com `engine-strict=true`: versão local do Node precisa bater com `engines`
+- **`pnpm db:push` PROIBIDO neste projeto** — o banco tem tabelas legadas que o Drizzle desconhece; o push propõe `DROP SCHEMA protese` com 26 tabelas. Para mudanças de schema: usar `ALTER TABLE` via MCP Neon (ver DECISIONS.md 2026-04-01)
+- **Comparação de `time` com string**: campos `time` do PostgreSQL chegam como `"HH:MM:SS"`, mas `<input type="time">` retorna `"HH:MM"` — nunca comparar diretamente. Usar `timeToMinutes()` de `src/lib/slots.ts`
 
 ### Better Auth (Neon Auth)
 

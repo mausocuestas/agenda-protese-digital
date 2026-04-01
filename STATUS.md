@@ -182,18 +182,6 @@
 
 ---
 
-## Migração pendente ⚠️
-
-Após o commit desta sessão, executar obrigatoriamente:
-```bash
-pnpm db:generate   # gera migration para os novos campos
-pnpm db:push       # aplica no banco Neon
-```
-Novos campos em `third_party_schedules`: `lunch_start`, `lunch_end`, `default_duration`
-Novo campo em `appointments`: `scheduled_duration`
-
----
-
 ## Armadilhas conhecidas 🚧
 
 - **Nunca** usar `tailwind.config.js` — configuração exclusivamente via `@theme` no CSS
@@ -201,8 +189,9 @@ Novo campo em `appointments`: `scheduled_duration`
 - **Sempre** consultar `shared.health_units` para dados de unidades — não criar tabela local
 - Ao atualizar qualquer tabela do schema `shared`, pedir confirmação explícita ao usuário
 - esbuild na Vercel exige `approve-builds[]=esbuild` no `.npmrc` — não remover
-- Neon Auth: criar schema explícito antes de qualquer `CREATE TABLE`
+- Neon Auth: criar schema explícito antes de qualquer `CREATE AUTH`
 - `basePath` obrigatório no Better Auth: `/auth` no servidor e no cliente
+- **`pnpm db:push` vai propor DROP do schema inteiro** — o banco tem tabelas legadas em português (`pacientes`, `consultas`, etc.) que o Drizzle desconhece. Nunca confirmar o push destrutivo. Usar `ALTER TABLE` via MCP Neon para mudanças pontuais de schema (ver DECISIONS.md)
 
 ---
 
