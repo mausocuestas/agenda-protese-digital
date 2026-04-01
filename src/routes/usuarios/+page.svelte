@@ -249,6 +249,69 @@
                   Cancelar
                 </button>
               </div>
+
+              <!-- Unidades adicionais — só exibido para dentistas -->
+              {#if u.role === 'dentist'}
+                {@const extraUnits = data.userUnitRows.filter((r) => r.userId === u.id)}
+                {@const availableUnits = data.units.filter(
+                  (unit) =>
+                    !extraUnits.some((r) => r.unitId === unit.id) && unit.id !== u.defaultUnitId
+                )}
+                <div class="col-span-4 border-t border-gray-100 pt-3">
+                  <p class="mb-2 text-xs font-medium text-gray-600">Unidades adicionais</p>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <!-- Tag removível por unidade já vinculada -->
+                    {#each extraUnits as row (row.id)}
+                      <form method="POST" action="?/removeUserUnit" use:enhance>
+                        <input type="hidden" name="userUnitId" value={row.id} />
+                        <button
+                          type="submit"
+                          title="Remover vínculo"
+                          class="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 transition-colors hover:bg-red-100 hover:text-red-600"
+                        >
+                          {row.unitLabel}
+                          <span aria-hidden="true">×</span>
+                        </button>
+                      </form>
+                    {/each}
+
+                    <!-- Formulário de adição de nova unidade -->
+                    {#if availableUnits.length > 0}
+                      <form
+                        method="POST"
+                        action="?/addUserUnit"
+                        use:enhance
+                        class="flex items-center gap-1"
+                      >
+                        <input type="hidden" name="userId" value={u.id} />
+                        <select
+                          name="unitId"
+                          class="rounded-md border border-gray-200 px-2 py-0.5 text-xs text-gray-700 focus:border-blue-400 focus:outline-none"
+                        >
+                          <option value="">Selecione...</option>
+                          {#each availableUnits as unit (unit.id)}
+                            <option value={unit.id}>{unit.label}</option>
+                          {/each}
+                        </select>
+                        <button
+                          type="submit"
+                          class="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600 transition-colors hover:bg-blue-100 hover:text-blue-700"
+                        >
+                          + Adicionar
+                        </button>
+                      </form>
+                    {:else if extraUnits.length > 0}
+                      <span class="text-xs text-gray-400">Todas as unidades já vinculadas</span>
+                    {:else}
+                      <span class="text-xs text-gray-400">Nenhuma unidade adicional</span>
+                    {/if}
+                  </div>
+
+                  {#if form && 'unitError' in form && form.unitError}
+                    <p class="mt-1 text-xs text-red-600">{form.unitError}</p>
+                  {/if}
+                </div>
+              {/if}
             </form>
           {:else}
             <!-- Linha de visualização -->

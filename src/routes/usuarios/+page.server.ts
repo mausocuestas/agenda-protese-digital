@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types'
 import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { users, estabelecimentos } from '$lib/server/db/index'
+import { users, userUnits, estabelecimentos } from '$lib/server/db/index'
 import { eq, asc } from 'drizzle-orm'
 
 const VALID_ROLES = ['dentist', 'attendant', 'coordinator', 'third_party'] as const
@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   if (!user) redirect(302, '/login')
   if (user.role !== 'coordinator') redirect(302, '/')
 
-  const [allUsers, allUnits] = await Promise.all([
+  const [allUsers, allUnits, allUserUnits] = await Promise.all([
     db
       .select({
         id: users.id,
@@ -32,9 +32,19 @@ export const load: PageServerLoad = async ({ locals }) => {
       .from(estabelecimentos)
       .where(eq(estabelecimentos.isActive, true))
       .orderBy(asc(estabelecimentos.estabelecimento)),
+    db
+      .select({
+        id: userUnits.id,
+        userId: userUnits.userId,
+        unitId: userUnits.unitId,
+        unitLabel: estabelecimentos.estabelecimento,
+      })
+      .from(userUnits)
+      .innerJoin(estabelecimentos, eq(userUnits.unitId, estabelecimentos.id))
+      .orderBy(asc(estabelecimentos.estabelecimento)),
   ])
 
-  return { users: allUsers, units: allUnits, currentUserId: user.appId }
+  return { users: allUsers, units: allUnits, currentUserId: user.appId, userUnitRows: allUserUnits }
 }
 
 export const actions: Actions = {
@@ -113,6 +123,50 @@ export const actions: Actions = {
     }
 
     return { userEdited: true }
+  },
+
+  // Vincula uma unidade adicional a um dentista
+  addUserUnit: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user || user.role !== 'coordinator') return fail(403, { unitError: 'Sem permissão' })
+
+    const data = await request.formData()
+    const userId = parseInt(data.get('userId') as string, 10)
+    const unitId = parseInt(data.get('unitId') as string, 10)
+
+    if (!userId || isNaN(userId) || !unitId || isNaN(unitId)) {
+      return fail(400, { unitError: 'Selecione uma unidade válida' })
+    }
+
+    try {
+      await db.insert(userUnits).values({ userId, unitId })
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message.includes('unique')) {
+        return fail(400, { unitError: 'Unidade já vinculada a este dentista' })
+      }
+      return fail(500, { unitError: 'Erro ao adicionar unidade. Tente novamente.' })
+    }
+
+    return { unitAdded: true }
+  },
+
+  // Remove o vínculo de uma unidade adicional de um dentista
+  removeUserUnit: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user || user.role !== 'coordinator') return fail(403, { unitError: 'Sem permissão' })
+
+    const data = await request.formData()
+    const id = parseInt(data.get('userUnitId') as string, 10)
+
+    if (!id || isNaN(id)) return fail(400, { unitError: 'Vínculo inválido' })
+
+    try {
+      await db.delete(userUnits).where(eq(userUnits.id, id))
+    } catch {
+      return fail(500, { unitError: 'Erro ao remover unidade. Tente novamente.' })
+    }
+
+    return { unitRemoved: true }
   },
 
   // Ativa ou desativa um usuário (sem excluir — mantém histórico de ações)
