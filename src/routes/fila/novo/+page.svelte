@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms'
+  import { browser } from '$app/environment'
   import type { PageData } from './$types'
 
   let { data }: { data: PageData } = $props()
@@ -12,6 +13,18 @@
     phone: string
   }
 
+  type Draft = {
+    introductionDate: string
+    selectedTypeIds: number[]
+    hasOmbudsmanFlag: boolean
+    hasAccidentFlag: boolean
+    note: string
+    isNewPatient?: boolean
+    newFullName?: string
+    newBirthDate?: string
+    newPhone?: string
+  }
+
   // Controla qual etapa está ativa
   let stage = $state<'search' | 'form'>('search')
   let foundPatient = $state<FoundPatient | null>(null)
@@ -19,6 +32,7 @@
   let searchError = $state('')
   let createError = $state('')
   let submitting = $state(false)
+  let draftRestored = $state(false)
 
   // CPF — dígitos brutos para envio; formatado para exibição
   let cpfDigits = $state('')
@@ -37,8 +51,83 @@
   let hasOmbudsmanFlag = $state(false)
   let hasAccidentFlag = $state(false)
   let note = $state('')
-  // Para coordenador: unidade selecionada (pré-seleciona a primeira)
-  let healthUnitId = $state(data.units[0]?.id ?? 0)
+
+  // Campos do novo paciente — necessários para bind e para o rascunho
+  let newFullName = $state('')
+  let newBirthDate = $state('')
+  let newPhone = $state('')
+
+  // Sticky: recupera a última unidade usada nesta sessão do navegador
+  const SESSION_KEY = 'lastHealthUnitId'
+  const DRAFT_KEY = 'draft_encaminhamento'
+
+  function getInitialUnit(): number {
+    if (browser && data.units.length > 1) {
+      const stored = sessionStorage.getItem(SESSION_KEY)
+      if (stored) {
+        const parsed = parseInt(stored, 10)
+        if (data.units.some((u) => u.id === parsed)) return parsed
+      }
+    }
+    return data.units[0]?.id ?? 0
+  }
+
+  let healthUnitId = $state(getInitialUnit())
+
+  $effect(() => {
+    if (browser && data.units.length > 1) {
+      sessionStorage.setItem(SESSION_KEY, String(healthUnitId))
+    }
+  })
+
+  // Salva rascunho no localStorage sempre que os campos do formulário mudarem
+  $effect(() => {
+    if (!browser || stage !== 'form') return
+    const draft: Draft = {
+      introductionDate,
+      selectedTypeIds: [...selectedTypeIds],
+      hasOmbudsmanFlag,
+      hasAccidentFlag,
+      note,
+    }
+    if (isNewPatient) {
+      draft.isNewPatient = true
+      draft.newFullName = newFullName
+      draft.newBirthDate = newBirthDate
+      draft.newPhone = newPhone
+    }
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+  })
+
+  function loadDraft(): Draft | null {
+    if (!browser) return null
+    const raw = localStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    try {
+      return JSON.parse(raw) as Draft
+    } catch {
+      return null
+    }
+  }
+
+  function applyDraft(draft: Draft, forNewPatient: boolean) {
+    introductionDate = draft.introductionDate
+    selectedTypeIds = draft.selectedTypeIds
+    hasOmbudsmanFlag = draft.hasOmbudsmanFlag
+    hasAccidentFlag = draft.hasAccidentFlag
+    note = draft.note
+    if (forNewPatient && draft.isNewPatient) {
+      newFullName = draft.newFullName ?? ''
+      newBirthDate = draft.newBirthDate ?? ''
+      newPhone = draft.newPhone ?? ''
+    }
+    draftRestored = true
+  }
+
+  function discardDraft() {
+    if (browser) localStorage.removeItem(DRAFT_KEY)
+    draftRestored = false
+  }
 
   // Agrupa os tipos por posição para reduzir erro de seleção — sem alterar banco
   const prosthesisGroups = $derived([
@@ -79,6 +168,7 @@
     isNewPatient = false
     searchError = ''
     createError = ''
+    draftRestored = false
   }
 </script>
 
@@ -121,6 +211,9 @@
                 foundPatient = d.patient
                 isNewPatient = d.patient === null
                 stage = 'form'
+                // Restaura rascunho salvo, se existir
+                const draft = loadDraft()
+                if (draft) applyDraft(draft, d.patient === null)
               } else if (result.type === 'failure') {
                 const d = result.data as { searchError?: string }
                 searchError = d?.searchError ?? 'Erro ao buscar.'
@@ -162,6 +255,14 @@
 
     <!-- ── ETAPA 2: Formulário completo ─────────────────────────────────────── -->
     {#if stage === 'form'}
+      {#if draftRestored}
+        <div class="mb-4 flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-700">
+          <span>Rascunho restaurado — os dados do último preenchimento foram recuperados.</span>
+          <button type="button" onclick={discardDraft} class="ml-4 font-medium underline hover:text-amber-900">
+            Descartar
+          </button>
+        </div>
+      {/if}
       <form
         method="POST"
         action="?/create"
@@ -173,7 +274,8 @@
               const d = result.data as { createError?: string }
               createError = d?.createError ?? 'Erro ao salvar.'
             } else {
-              // Redireciona para o detalhe do encaminhamento criado
+              // Limpa rascunho e redireciona para o detalhe do encaminhamento criado
+              if (browser) localStorage.removeItem(DRAFT_KEY)
               await update()
             }
           }
@@ -220,6 +322,7 @@
                   id="fullName"
                   name="fullName"
                   type="text"
+                  bind:value={newFullName}
                   required
                   class="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
                 />
@@ -232,6 +335,7 @@
                   id="birthDate"
                   name="birthDate"
                   type="date"
+                  bind:value={newBirthDate}
                   required
                   class="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
                 />
@@ -244,6 +348,7 @@
                   id="phone"
                   name="phone"
                   type="tel"
+                  bind:value={newPhone}
                   placeholder="(11) 99999-9999"
                   required
                   class="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 focus:outline-none"
