@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-01 (itens 7 e 8 concluídos — visibilidade ao terceirizado + alertas CON na fila)
+**Última atualização:** 2026-04-01 (item 9 coord. — capacidade semanal no dashboard)
 
 ---
 
@@ -139,8 +139,8 @@
 - [ ] Verificar se modal de contato é suficientemente leve (sem abrir ficha completa)
 
 #### Coordenador (Dashboard)
-- [ ] Cálculo de previsibilidade: capacidade semanal vs. ocupação → "X vagas disponíveis para novos pacientes"
-- [ ] Campo configurável de limite de pacientes por semana (`system_configs`)
+- [x] Cálculo de previsibilidade: capacidade semanal vs. ocupação → "X vagas disponíveis" calculado de `third_party_schedules`
+- [ ] Campo configurável de limite de pacientes por semana (`system_configs`) — opcional, `third_party_schedules` já é a fonte de verdade
 - [x] Central de notificações: não conformidades pendentes · aprovações pendentes · ligações de satisfação pendentes — coberto pelos badges de Qualidade e Custódia
 
 #### Terceirizado (`/minha-agenda`)

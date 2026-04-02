@@ -67,6 +67,9 @@
     },
   ])
 
+  // Urgente quando não há vagas ou agenda não foi configurada para a semana
+  const capacidadeUrgente = $derived(data.canApprove && (data.weekAvailable === 0 || data.weekCapacity === 0))
+
   const custodiaCards = $derived([
     {
       label: 'Aguardando confecção',
@@ -147,6 +150,54 @@
             <span class="mt-1 text-xs text-gray-400">{card.description}</span>
           </a>
         {/each}
+      </div>
+    </section>
+  {/if}
+
+  <!-- Capacidade semanal — só coordenador -->
+  {#if data.canApprove}
+    <section class="mb-8">
+      <h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Capacidade esta semana</h2>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <!-- Vagas disponíveis — destaque principal -->
+        <a
+          href="/configuracoes"
+          class="group flex flex-col rounded-lg border bg-white p-5 shadow-sm transition-shadow hover:shadow-md {capacidadeUrgente
+            ? 'border-red-200'
+            : 'border-gray-200'}"
+        >
+          <span class="text-3xl font-bold {capacidadeUrgente ? 'text-red-600' : 'text-emerald-600'}">
+            {data.weekAvailable}
+          </span>
+          <span class="mt-1 text-sm font-medium text-gray-700">Vagas disponíveis</span>
+          <span class="mt-1 text-xs text-gray-400">
+            {#if data.weekCapacity === 0}
+              Agenda não configurada para esta semana
+            {:else}
+              {data.weekOccupied} de {data.weekCapacity} slots ocupados
+            {/if}
+          </span>
+        </a>
+
+        <!-- Total configurado -->
+        <a
+          href="/configuracoes"
+          class="group flex flex-col rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+        >
+          <span class="text-3xl font-bold text-gray-900">{data.weekCapacity}</span>
+          <span class="mt-1 text-sm font-medium text-gray-700">Slots configurados</span>
+          <span class="mt-1 text-xs text-gray-400">Capacidade total calculada da agenda</span>
+        </a>
+
+        <!-- Ocupados -->
+        <a
+          href="/agenda"
+          class="group flex flex-col rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+        >
+          <span class="text-3xl font-bold text-gray-900">{data.weekOccupied}</span>
+          <span class="mt-1 text-sm font-medium text-gray-700">Agendamentos esta semana</span>
+          <span class="mt-1 text-xs text-gray-400">Consultas marcadas (todos os status)</span>
+        </a>
       </div>
     </section>
   {/if}

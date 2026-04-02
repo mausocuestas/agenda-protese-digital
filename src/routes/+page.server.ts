@@ -8,8 +8,39 @@ import {
   coordinationApprovals,
   satisfactionCalls,
   systemConfigs,
+  thirdPartySchedules,
 } from '$lib/server/db/index'
 import { and, eq, isNull, isNotNull, inArray, gte, lte, count, sql } from 'drizzle-orm'
+import { timeToMinutes } from '$lib/slots'
+
+// Retorna segunda e domingo da semana atual (ISO: semana começa na segunda)
+function getWeekBoundaries(): { weekStart: string; weekEnd: string } {
+  const now = new Date()
+  const day = now.getDay() // 0 = domingo
+  const diffToMon = day === 0 ? -6 : 1 - day
+  const mon = new Date(now)
+  mon.setDate(now.getDate() + diffToMon)
+  const sun = new Date(mon)
+  sun.setDate(mon.getDate() + 6)
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return { weekStart: fmt(mon), weekEnd: fmt(sun) }
+}
+
+// Calcula quantos slots cabem em uma agenda com base na duração padrão e no almoço
+function scheduleSlots(s: {
+  startTime: string
+  endTime: string
+  lunchStart: string | null
+  lunchEnd: string | null
+  defaultDuration: number
+}): number {
+  let total = timeToMinutes(s.endTime) - timeToMinutes(s.startTime)
+  if (s.lunchStart && s.lunchEnd) {
+    total -= timeToMinutes(s.lunchEnd) - timeToMinutes(s.lunchStart)
+  }
+  return Math.max(0, Math.floor(total / s.defaultDuration))
+}
 
 // Gera os últimos N meses em formato YYYY-MM, do mais antigo ao mais recente
 function lastMonths(n: number): string[] {
@@ -165,6 +196,42 @@ export const load: PageServerLoad = async ({ locals }) => {
     pendingUnitAppointmentsCount = Number(row?.count ?? 0)
   }
 
+  // ── Capacidade semanal — visível apenas para o coordenador ─────────────────────
+  let weekCapacity = 0
+  let weekOccupied = 0
+  if (canApprove) {
+    const { weekStart, weekEnd } = getWeekBoundaries()
+
+    // Total de slots disponíveis nas agendas configuradas para esta semana
+    const schedules = await db.query.thirdPartySchedules.findMany({
+      where: and(
+        gte(thirdPartySchedules.scheduledDate, weekStart),
+        lte(thirdPartySchedules.scheduledDate, weekEnd)
+      ),
+      columns: {
+        startTime: true,
+        endTime: true,
+        lunchStart: true,
+        lunchEnd: true,
+        defaultDuration: true,
+      },
+    })
+    weekCapacity = schedules.reduce((sum, s) => sum + scheduleSlots(s), 0)
+
+    // Slots já ocupados por agendamentos confirmados ou pendentes esta semana
+    const [occRow] = await db
+      .select({ count: count() })
+      .from(appointments)
+      .where(
+        and(
+          gte(appointments.scheduledDate, weekStart),
+          lte(appointments.scheduledDate, weekEnd)
+        )
+      )
+    weekOccupied = Math.min(Number(occRow?.count ?? 0), weekCapacity)
+  }
+  const weekAvailable = Math.max(0, weekCapacity - weekOccupied)
+
   // ── Gráficos históricos (últimos 6 meses) — visíveis apenas para coordinator ──
   const chartMonths = lastMonths(6)
 
@@ -230,6 +297,9 @@ export const load: PageServerLoad = async ({ locals }) => {
     awaitingApprovalCount,
     awaitingSatisfactionCount,
     pendingUnitAppointmentsCount,
+    weekCapacity,
+    weekOccupied,
+    weekAvailable,
     chartMonths,
     referralsByMonth,
     deliveriesByMonth,
