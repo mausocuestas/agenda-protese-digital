@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-01 (auto-save de rascunho no formulário de encaminhamento)
+**Última atualização:** 2026-04-02 (modal de histórico do paciente no formulário de encaminhamento)
 
 ---
 
@@ -130,7 +130,7 @@
 - [x] Seleção de tipo de prótese agrupada por Superior / Inferior / Outros — reduz erro de solicitação
 - [x] Auto-save de rascunho no formulário de encaminhamento — localStorage, restaura ao voltar, banner "Descartar"
 - [x] Sticky state da unidade ativa por sessão (não reconfirmar a cada cadastro)
-- [ ] Histórico do paciente acessível via modal (sem sair da tela de cadastro)
+- [x] Histórico do paciente acessível via modal (sem sair da tela de cadastro) — botão "Ver histórico" na seção do paciente encontrado; modal com encaminhamentos, tipos, flags e consultas
 - [x] Campo de justificativa condicional na avaliação de conformidade (só aparece se "Não conforme")
 
 #### Atendente (Painel principal)

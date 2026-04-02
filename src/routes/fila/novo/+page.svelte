@@ -13,6 +13,23 @@
     phone: string
   }
 
+  type HistoryAppointment = {
+    appointmentNumber: number
+    scheduledDate: string
+    outcome: 'attended' | 'absent' | 'refused' | null
+  }
+
+  type HistoryReferral = {
+    id: number
+    introductionDate: string
+    status: string
+    inactivationReason: string | null
+    hasOmbudsmanFlag: boolean
+    hasAccidentFlag: boolean
+    types: { name: string }[]
+    appointments: HistoryAppointment[]
+  }
+
   type Draft = {
     introductionDate: string
     selectedTypeIds: number[]
@@ -170,6 +187,35 @@
     createError = ''
     draftRestored = false
   }
+
+  // Modal de histórico do paciente
+  let historyOpen = $state(false)
+  let historyLoading = $state(false)
+  let historyData = $state<HistoryReferral[]>([])
+
+  const outcomeLabel: Record<string, string> = {
+    attended: 'Compareceu',
+    absent: 'Faltou',
+    refused: 'Recusado',
+  }
+
+  const apptLabel: Record<number, string> = {
+    1: 'Escaneamento',
+    2: '1º Ajuste',
+    3: '2º Ajuste',
+    4: 'Entrega',
+  }
+
+  const statusLabel: Record<string, string> = {
+    active: 'Ativo',
+    pending_reassessment: 'Reavaliação pendente',
+    suspended: 'Suspenso',
+    inactive: 'Inativo',
+  }
+
+  function apptStep(n: number): string {
+    return apptLabel[n] ?? `Consulta ${n}`
+  }
 </script>
 
 <div class="min-h-screen bg-gray-50">
@@ -307,6 +353,32 @@
               </div>
             </div>
             <p class="mt-3 text-xs text-blue-600">Paciente já cadastrado — dados reutilizados.</p>
+
+            <!-- Botão que abre o modal de histórico sem sair da tela -->
+            <form
+              method="POST"
+              action="?/patient_history"
+              use:enhance={() => {
+                historyLoading = true
+                return async ({ result }) => {
+                  historyLoading = false
+                  if (result.type === 'success') {
+                    const d = result.data as { history: HistoryReferral[] }
+                    historyData = d.history
+                    historyOpen = true
+                  }
+                }
+              }}
+            >
+              <input type="hidden" name="patientId" value={foundPatient.id} />
+              <button
+                type="submit"
+                disabled={historyLoading}
+                class="mt-3 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+              >
+                {historyLoading ? 'Carregando…' : '🕐 Ver histórico do paciente'}
+              </button>
+            </form>
           {:else}
             <!-- Novo paciente — campos editáveis -->
             <p class="mb-4 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
@@ -498,3 +570,112 @@
 
   </div>
 </div>
+
+<!-- Modal de histórico do paciente -->
+{#if historyOpen}
+  <!-- Fundo escuro clicável para fechar -->
+  <div
+    class="fixed inset-0 z-40 bg-black/40"
+    role="button"
+    tabindex="-1"
+    aria-label="Fechar histórico"
+    onclick={() => (historyOpen = false)}
+    onkeydown={(e) => e.key === 'Escape' && (historyOpen = false)}
+  ></div>
+
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="flex max-h-[80vh] w-full max-w-lg flex-col rounded-xl border border-gray-200 bg-white shadow-xl">
+      <!-- Cabeçalho do modal -->
+      <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+        <div>
+          <h2 class="text-sm font-semibold text-gray-900">Histórico do paciente</h2>
+          <p class="text-xs text-gray-400">{foundPatient?.fullName}</p>
+        </div>
+        <button
+          type="button"
+          onclick={() => (historyOpen = false)}
+          class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          aria-label="Fechar"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Corpo do modal — rolável -->
+      <div class="overflow-y-auto px-5 py-4">
+        {#if historyData.length === 0}
+          <p class="py-6 text-center text-sm text-gray-400">Nenhum encaminhamento anterior.</p>
+        {:else}
+          <div class="space-y-4">
+            {#each historyData as ref, i (ref.id)}
+              <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                <!-- Cabeçalho do encaminhamento -->
+                <div class="mb-2 flex items-start justify-between gap-2">
+                  <div>
+                    <p class="text-xs font-medium text-gray-700">
+                      Encaminhamento #{ref.id}
+                      {#if i === 0}<span class="ml-1 text-gray-400">(mais recente)</span>{/if}
+                    </p>
+                    <p class="text-xs text-gray-400">Introdução: {ref.introductionDate}</p>
+                  </div>
+                  <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold
+                    {ref.status === 'active' ? 'bg-green-100 text-green-700' :
+                     ref.status === 'inactive' ? 'bg-gray-200 text-gray-500' :
+                     ref.status === 'suspended' ? 'bg-amber-100 text-amber-700' :
+                     'bg-orange-100 text-orange-700'}">
+                    {statusLabel[ref.status] ?? ref.status}
+                  </span>
+                </div>
+
+                <!-- Tipos de prótese -->
+                {#if ref.types.length > 0}
+                  <p class="mb-2 text-xs text-gray-600">
+                    {ref.types.map((t) => t.name).join(' + ')}
+                  </p>
+                {/if}
+
+                <!-- Flags de prioridade -->
+                {#if ref.hasOmbudsmanFlag || ref.hasAccidentFlag}
+                  <div class="mb-2 flex gap-2">
+                    {#if ref.hasOmbudsmanFlag}
+                      <span class="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">OUV</span>
+                    {/if}
+                    {#if ref.hasAccidentFlag}
+                      <span class="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-600">ACI</span>
+                    {/if}
+                  </div>
+                {/if}
+
+                <!-- Consultas -->
+                {#if ref.appointments.length > 0}
+                  <div class="mt-2 space-y-1 border-t border-gray-100 pt-2">
+                    {#each ref.appointments as appt (appt.appointmentNumber)}
+                      <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-600">{apptStep(appt.appointmentNumber)}</span>
+                        <div class="flex items-center gap-2 text-gray-400">
+                          <span>{appt.scheduledDate}</span>
+                          {#if appt.outcome}
+                            <span class="rounded px-1.5 py-0.5 text-[10px] font-medium
+                              {appt.outcome === 'attended' ? 'bg-green-100 text-green-700' :
+                               appt.outcome === 'absent' ? 'bg-red-100 text-red-600' :
+                               'bg-gray-100 text-gray-500'}">
+                              {outcomeLabel[appt.outcome]}
+                            </span>
+                          {:else}
+                            <span class="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-500">Agendado</span>
+                          {/if}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {:else}
+                  <p class="mt-1 text-xs text-gray-400">Sem consultas registradas.</p>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}

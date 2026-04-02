@@ -7,9 +7,10 @@ import {
   referralProsthesisTypes,
   prosthesisTypes,
   referralNotes,
+  appointments,
   estabelecimentos,
 } from '$lib/server/db/index'
-import { eq } from 'drizzle-orm'
+import { eq, desc, isNull, and } from 'drizzle-orm'
 
 export const load: PageServerLoad = async ({ locals }) => {
   const user = locals.user
@@ -150,5 +151,55 @@ export const actions: Actions = {
     }
 
     redirect(302, `/fila/${referralId}`)
+  },
+
+  // Carrega histórico de encaminhamentos de um paciente (para o modal sem sair da tela)
+  patient_history: async ({ request, locals }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+
+    const data = await request.formData()
+    const patientId = Number(data.get('patientId'))
+    if (!patientId) return fail(400, { historyError: 'ID inválido.' })
+
+    const patientReferrals = await db
+      .select({
+        id: referrals.id,
+        introductionDate: referrals.introductionDate,
+        status: referrals.status,
+        inactivationReason: referrals.inactivationReason,
+        hasOmbudsmanFlag: referrals.hasOmbudsmanFlag,
+        hasAccidentFlag: referrals.hasAccidentFlag,
+      })
+      .from(referrals)
+      .where(and(eq(referrals.patientId, patientId), isNull(referrals.deletedAt)))
+      .orderBy(desc(referrals.introductionDate))
+
+    const history = await Promise.all(
+      patientReferrals.map(async (ref) => {
+        const types = await db
+          .select({ name: prosthesisTypes.name })
+          .from(referralProsthesisTypes)
+          .innerJoin(
+            prosthesisTypes,
+            eq(referralProsthesisTypes.prosthesisTypeId, prosthesisTypes.id)
+          )
+          .where(eq(referralProsthesisTypes.referralId, ref.id))
+
+        const appts = await db
+          .select({
+            appointmentNumber: appointments.appointmentNumber,
+            scheduledDate: appointments.scheduledDate,
+            outcome: appointments.outcome,
+          })
+          .from(appointments)
+          .where(eq(appointments.referralId, ref.id))
+          .orderBy(appointments.appointmentNumber)
+
+        return { ...ref, types, appointments: appts }
+      })
+    )
+
+    return { history }
   },
 }
