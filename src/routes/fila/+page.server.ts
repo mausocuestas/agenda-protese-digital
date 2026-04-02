@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types'
 import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { referrals, estabelecimentos, unitResponsibilities, systemConfigs } from '$lib/server/db/index'
-import { isNull, inArray, eq, desc, asc } from 'drizzle-orm'
+import { referrals, estabelecimentos, unitResponsibilities, systemConfigs, contactAttempts } from '$lib/server/db/index'
+import { isNull, inArray, eq, desc, asc, and, count } from 'drizzle-orm'
 import { calcAge, daysSince } from '$lib/utils'
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -103,6 +103,20 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     ],
   })
 
+  // Conta tentativas de contato sem resposta por encaminhamento — alerta CON
+  const referralIds = rows.map((r) => r.id)
+  const noAnswerMap = new Map<number, number>()
+  if (referralIds.length > 0) {
+    const noAnswerCounts = await db
+      .select({ referralId: contactAttempts.referralId, total: count() })
+      .from(contactAttempts)
+      .where(and(eq(contactAttempts.result, 'no_answer'), inArray(contactAttempts.referralId, referralIds)))
+      .groupBy(contactAttempts.referralId)
+    for (const row of noAnswerCounts) {
+      noAnswerMap.set(row.referralId, row.total)
+    }
+  }
+
   const items = rows.map((r) => {
     const age = calcAge(r.patient.birthDate)
     const daysInQueue = daysSince(r.introductionDate)
@@ -121,6 +135,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       hasAccidentFlag: r.hasAccidentFlag,
       serviceOrderNumber: r.serviceOrderNumber,
       prosthesisTypes: r.prosthesisTypes.map((p) => p.prosthesisType.name),
+      noAnswerCount: noAnswerMap.get(r.id) ?? 0,
     }
   })
 
@@ -176,6 +191,24 @@ export const actions: Actions = {
     }
 
     return { toggled: true }
+  },
+
+  // Coordenador ou atendente libera vaga após 5 tentativas sem resposta
+  release_slot: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+    if (!['coordinator', 'attendant'].includes(user.role)) return fail(403, { error: 'Sem permissão' })
+
+    const data = await request.formData()
+    const referralId = parseInt(data.get('referralId') as string, 10)
+    if (isNaN(referralId)) return fail(400, { error: 'Dados inválidos' })
+
+    await db
+      .update(referrals)
+      .set({ status: 'inactive', inactivationReason: 'dropout', updatedAt: new Date() })
+      .where(eq(referrals.id, referralId))
+
+    return { released: true }
   },
 
   // Suspende ou reativa encaminhamento — exclusivo do coordenador

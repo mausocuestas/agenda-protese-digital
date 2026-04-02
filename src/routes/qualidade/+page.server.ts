@@ -125,6 +125,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       appointmentId: ca.appointmentId,
       finalVerdict: ca.finalVerdict,
       assessedAt: ca.assessedAt.toISOString(),
+      isVisibleToThirdParty: ca.isVisibleToThirdParty,
       patientName: ca.referral.patient.fullName,
       unitName: ca.referral.healthUnit.estabelecimento,
     })),
@@ -275,6 +276,31 @@ export const actions: Actions = {
       notes: notes ?? undefined,
       calledBy: user.appId,
     })
+
+    return { success: true }
+  },
+
+  // Coordenador alterna visibilidade da avaliação de conformidade para o terceirizado
+  toggle_third_party_visibility: async ({ request, locals }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+    if (user.role !== 'coordinator') {
+      return fail(403, { message: 'Apenas coordenador pode alterar visibilidade' })
+    }
+
+    const fd = await request.formData()
+    const conformityId = parseInt(fd.get('conformityId') as string, 10)
+    if (isNaN(conformityId)) return fail(400, { message: 'ID inválido' })
+
+    const existing = await db.query.conformityAssessments.findFirst({
+      where: eq(conformityAssessments.id, conformityId),
+    })
+    if (!existing) return fail(404, { message: 'Avaliação não encontrada' })
+
+    await db
+      .update(conformityAssessments)
+      .set({ isVisibleToThirdParty: !existing.isVisibleToThirdParty })
+      .where(eq(conformityAssessments.id, conformityId))
 
     return { success: true }
   },

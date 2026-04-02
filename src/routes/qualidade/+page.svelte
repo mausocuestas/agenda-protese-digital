@@ -325,48 +325,68 @@
         {:else}
           <ul class="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
             {#each data.awaitingApproval as item (item.conformityId)}
-              <li class="flex items-center justify-between gap-4 px-5 py-4">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2">
-                    <a
-                      href="/fila/{item.referralId}"
-                      class="font-medium text-gray-900 hover:underline"
-                    >
-                      {item.patientName}
-                    </a>
-                    <span
-                      class="rounded px-2 py-0.5 text-xs font-medium {verdictColor[item.finalVerdict]}"
-                    >
-                      {verdictLabel[item.finalVerdict]}
-                    </span>
+              <li class="px-5 py-4">
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <a
+                        href="/fila/{item.referralId}"
+                        class="font-medium text-gray-900 hover:underline"
+                      >
+                        {item.patientName}
+                      </a>
+                      <span
+                        class="rounded px-2 py-0.5 text-xs font-medium {verdictColor[item.finalVerdict]}"
+                      >
+                        {verdictLabel[item.finalVerdict]}
+                      </span>
+                    </div>
+                    <p class="mt-0.5 text-sm text-gray-500">
+                      {item.unitName} · avaliada em {fmtDateTime(item.assessedAt)}
+                    </p>
                   </div>
-                  <p class="mt-0.5 text-sm text-gray-500">
-                    {item.unitName} · avaliada em {fmtDateTime(item.assessedAt)}
-                  </p>
-                </div>
-                <!-- Formulário inline com NF -->
-                <form
-                  method="POST"
-                  action="?/approve_coordination"
-                  use:enhance
-                  class="flex shrink-0 items-center gap-2"
-                >
-                  <input type="hidden" name="referralId" value={item.referralId} />
-                  <input
-                    type="text"
-                    name="invoiceNumber"
-                    placeholder="NF ex: NF-2024-001"
-                    required
-                    maxlength="50"
-                    class="w-36 rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-purple-400 focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    class="rounded-md bg-purple-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-purple-700"
+                  <!-- Formulário inline com NF -->
+                  <form
+                    method="POST"
+                    action="?/approve_coordination"
+                    use:enhance
+                    class="flex shrink-0 items-center gap-2"
                   >
-                    Aprovar
-                  </button>
-                </form>
+                    <input type="hidden" name="referralId" value={item.referralId} />
+                    <input
+                      type="text"
+                      name="invoiceNumber"
+                      placeholder="NF ex: NF-2024-001"
+                      required
+                      maxlength="50"
+                      class="w-36 rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-purple-400 focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      class="rounded-md bg-purple-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-purple-700"
+                    >
+                      Aprovar
+                    </button>
+                  </form>
+                </div>
+                <!-- Toggle de visibilidade para o terceirizado -->
+                <div class="mt-2 flex items-center gap-2">
+                  <form method="POST" action="?/toggle_third_party_visibility" use:enhance>
+                    <input type="hidden" name="conformityId" value={item.conformityId} />
+                    <button
+                      type="submit"
+                      class="flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium transition-colors {item.isVisibleToThirdParty
+                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}"
+                    >
+                      {#if item.isVisibleToThirdParty}
+                        Visível ao terceirizado — ocultar
+                      {:else}
+                        Oculto ao terceirizado — tornar visível
+                      {/if}
+                    </button>
+                  </form>
+                </div>
               </li>
             {/each}
           </ul>

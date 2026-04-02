@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-01 (flag de atraso migrado para system_configs; card de atrasados no dashboard)
+**Última atualização:** 2026-04-01 (itens 7 e 8 concluídos — visibilidade ao terceirizado + alertas CON na fila)
 
 ---
 
@@ -114,14 +114,15 @@
 - [x] Vínculos `unit_responsibilities` corrigidos (Centro-UBS: 9; Imperial-USF: 9) — dado anterior estava com Centro/Imperial invertidos
 - [x] Comando `pnpm db:seed` no `package.json`
 
-### 7. Controle de visibilidade ao terceirizado
-- [ ] Toggle `is_visible_to_third_party` em `/qualidade` (visível apenas ao coordenador)
-- [ ] Ação `toggle_third_party_visibility` no `+page.server.ts` de `/qualidade`
+### 7. Controle de visibilidade ao terceirizado ✅
+- [x] Toggle `is_visible_to_third_party` em `/qualidade` (visível apenas ao coordenador)
+- [x] Ação `toggle_third_party_visibility` no `+page.server.ts` de `/qualidade`
 
-### 8. Regras de tentativas de contato — alertas
-- [ ] Verificar contagem de `contact_attempts` com `result = 'no_answer'` na query da fila
-- [ ] Flag amarelo ao coordenador após 3ª tentativa sem sucesso
-- [ ] Alerta de "5 tentativas atingidas" + ação "liberar vaga"
+### 8. Regras de tentativas de contato — alertas ✅
+- [x] Contagem de `contact_attempts` com `result = 'no_answer'` via GROUP BY na query da fila
+- [x] Badge CON N (amarelo ≥3, vermelho ≥5) na coluna de flags
+- [x] Filtro CON na barra de prioridades
+- [x] Botão "Liberar" (inativa o encaminhamento como dropout) visível a partir de 5 tentativas — coordenador e atendente
 
 ### 9. UX/UI por ator — requisitos mapeados no discovery
 
