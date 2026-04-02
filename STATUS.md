@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-01 (item 10 — página /metricas para coordenador)
+**Última atualização:** 2026-04-01 (UX touch-friendly para o terceirizado)
 
 ---
 
@@ -144,8 +144,8 @@
 - [x] Central de notificações: não conformidades pendentes · aprovações pendentes · ligações de satisfação pendentes — coberto pelos badges de Qualidade e Custódia
 
 #### Terceirizado (`/minha-agenda`)
-- [ ] Verificar se botões de ação (Compareceu / Faltou / Finalizado / Recusado) são suficientemente grandes e touch-friendly
-- [ ] Seleção rápida de tempo de previsão (sem digitação manual)
+- [x] Botões touch-friendly: `/minha-agenda` usa cards com botão "Abrir consulta" de área ampla; `/consulta/[apptId]` usa botões grandes para outcome (Compareceu/Faltou/Recusado) e seleção de duração
+- [x] Seleção rápida de tempo de previsão — botões pill 30min / 60min / Não informado (sem digitação manual)
 - [ ] Offline-first *(futuro — internet atual é ok, mas pode falhar em campo)*
 
 ---

@@ -271,7 +271,7 @@
         </div>
 
       {:else if data.canEditOutcome}
-        <!-- Formulário de registro de resultado -->
+        <!-- Formulário de registro de resultado — botões grandes para uso em campo -->
         <form
           method="POST"
           action="?/register_outcome"
@@ -282,34 +282,26 @@
             <legend class="text-sm font-medium text-gray-700">
               O paciente compareceu à consulta? <span class="text-red-500">*</span>
             </legend>
-            <div class="mt-3 space-y-2.5">
-              <label class="flex cursor-pointer items-center gap-3">
-                <input
-                  type="radio"
-                  name="outcome"
-                  value="attended"
-                  bind:group={selectedOutcome}
-                />
-                <span class="text-sm text-gray-800">Compareceu</span>
-              </label>
-              <label class="flex cursor-pointer items-center gap-3">
-                <input
-                  type="radio"
-                  name="outcome"
-                  value="absent"
-                  bind:group={selectedOutcome}
-                />
-                <span class="text-sm text-gray-800">Faltou (sem avisar)</span>
-              </label>
-              <label class="flex cursor-pointer items-center gap-3">
-                <input
-                  type="radio"
-                  name="outcome"
-                  value="refused"
-                  bind:group={selectedOutcome}
-                />
-                <span class="text-sm text-gray-800">Recusado pelo protético</span>
-              </label>
+            <!-- Botões de seleção com área de toque grande -->
+            <div class="mt-3 grid grid-cols-1 gap-3">
+              {#each [
+                { val: 'attended', label: 'Compareceu', icon: '✓', sel: 'border-green-500 bg-green-50 text-green-800', idle: 'border-gray-300 bg-white text-gray-700' },
+                { val: 'absent',   label: 'Faltou (sem avisar)', icon: '✗', sel: 'border-red-500 bg-red-50 text-red-800', idle: 'border-gray-300 bg-white text-gray-700' },
+                { val: 'refused',  label: 'Recusado pelo protético', icon: '⊘', sel: 'border-orange-500 bg-orange-50 text-orange-800', idle: 'border-gray-300 bg-white text-gray-700' },
+              ] as opt}
+                <label class="flex cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-4 transition-colors
+                  {selectedOutcome === opt.val ? opt.sel : opt.idle}">
+                  <input
+                    type="radio"
+                    name="outcome"
+                    value={opt.val}
+                    bind:group={selectedOutcome}
+                    class="sr-only"
+                  />
+                  <span class="text-xl leading-none">{opt.icon}</span>
+                  <span class="text-base font-medium">{opt.label}</span>
+                </label>
+              {/each}
             </div>
           </fieldset>
 
@@ -331,31 +323,26 @@
 
           {#if selectedOutcome === 'attended'}
             <div>
-              <p class="text-sm font-medium text-gray-700">
-                Estimativa de duração da próxima consulta
-              </p>
-              <div class="mt-2 flex gap-5">
-                <label class="flex cursor-pointer items-center gap-2">
-                  <input type="radio" name="nextDurationEstimate" value="30" />
-                  <span class="text-sm text-gray-800">30 min</span>
-                </label>
-                <label class="flex cursor-pointer items-center gap-2">
-                  <input type="radio" name="nextDurationEstimate" value="60" />
-                  <span class="text-sm text-gray-800">60 min</span>
-                </label>
-                <label class="flex cursor-pointer items-center gap-2">
-                  <input type="radio" name="nextDurationEstimate" value="" checked />
-                  <span class="text-sm text-gray-500">Não informado</span>
-                </label>
+              <p class="text-sm font-medium text-gray-700">Estimativa de duração da próxima consulta</p>
+              <div class="mt-2 grid grid-cols-3 gap-2">
+                {#each [{ val: '30', label: '30 min' }, { val: '60', label: '60 min' }, { val: '', label: 'Não informado' }] as dur}
+                  <label class="flex cursor-pointer items-center justify-center rounded-lg border-2 py-3 text-sm font-medium transition-colors
+                    has-checked:border-gray-900 has-checked:bg-gray-900 has-checked:text-white
+                    border-gray-300 bg-white text-gray-700">
+                    <input type="radio" name="nextDurationEstimate" value={dur.val}
+                      checked={dur.val === ''} class="sr-only" />
+                    {dur.label}
+                  </label>
+                {/each}
               </div>
             </div>
           {/if}
 
-          <div class="flex justify-end border-t border-gray-100 pt-4">
+          <div class="border-t border-gray-100 pt-4">
             <button
               type="submit"
               disabled={!selectedOutcome}
-              class="rounded-md bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40"
+              class="w-full rounded-xl bg-gray-900 py-4 text-base font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
             >
               Salvar resultado
             </button>

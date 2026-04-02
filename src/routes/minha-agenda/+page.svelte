@@ -112,64 +112,50 @@
                     Nenhuma consulta agendada para esta visita.
                   </p>
                 {:else}
-                  <!-- Tabela de consultas da visita -->
-                  <table class="w-full border-collapse text-sm">
-                    <thead>
-                      <tr class="border-b border-gray-100 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                        <th class="px-4 py-2">Horário</th>
-                        <th class="px-4 py-2">Paciente</th>
-                        <th class="px-4 py-2">Consulta</th>
-                        <th class="px-4 py-2">Resultado</th>
-                        <th class="px-4 py-2">Prótese</th>
-                        <th class="px-4 py-2"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each schedule.appointments as appt (appt.id)}
-                        {@const outcome = appt.outcome ? outcomeConfig[appt.outcome] : null}
-                        {@const prosthesis = getProsthesisStatus(appt)}
-                        <tr class="border-b border-gray-50 last:border-0">
-                          <td class="px-4 py-3 font-mono text-gray-700">
-                            {formatTime(appt.scheduledTime)}
-                          </td>
-                          <td class="px-4 py-3 font-medium text-gray-900">
-                            {appt.patientName}
-                          </td>
-                          <td class="px-4 py-3 text-gray-600">
-                            {getLabel(appt.appointmentNumber)}
-                          </td>
-                          <td class="px-4 py-3">
-                            {#if outcome}
-                              <span class="rounded-full px-2 py-0.5 text-xs font-medium {outcome.cls}">
-                                {outcome.label}
-                              </span>
-                            {:else}
-                              <span class="rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-700">
-                                Pendente
-                              </span>
-                            {/if}
-                          </td>
-                          <td class="px-4 py-3">
-                            {#if prosthesis}
-                              <span class="rounded-full px-2 py-0.5 text-xs font-medium {prosthesis.cls}">
-                                {prosthesis.label}
-                              </span>
-                            {:else}
-                              <span class="text-gray-300 text-xs">—</span>
-                            {/if}
-                          </td>
-                          <td class="px-4 py-3 text-right">
-                            <a
-                              href="/fila/{appt.referralId}/consulta/{appt.id}"
-                              class="text-xs font-medium text-blue-600 hover:text-blue-800"
-                            >
-                              Abrir →
-                            </a>
-                          </td>
-                        </tr>
-                      {/each}
-                    </tbody>
-                  </table>
+                  <!-- Cards de consulta — layout touch-friendly para mobile -->
+                  <ul class="divide-y divide-gray-100">
+                    {#each schedule.appointments as appt (appt.id)}
+                      {@const outcome = appt.outcome ? outcomeConfig[appt.outcome] : null}
+                      {@const prosthesis = getProsthesisStatus(appt)}
+                      <li class="px-4 py-4">
+                        <!-- Linha superior: horário + tipo de consulta -->
+                        <div class="mb-1 flex items-center gap-2 text-xs text-gray-500">
+                          <span class="font-mono">{formatTime(appt.scheduledTime)}</span>
+                          <span class="text-gray-300">·</span>
+                          <span>{getLabel(appt.appointmentNumber)}</span>
+                        </div>
+
+                        <!-- Nome do paciente -->
+                        <p class="text-base font-semibold text-gray-900">{appt.patientName}</p>
+
+                        <!-- Badges de status -->
+                        <div class="mt-2 flex flex-wrap gap-2">
+                          {#if outcome}
+                            <span class="rounded-full px-2.5 py-1 text-xs font-medium {outcome.cls}">
+                              {outcome.label}
+                            </span>
+                          {:else}
+                            <span class="rounded-full bg-yellow-50 px-2.5 py-1 text-xs font-medium text-yellow-700">
+                              Pendente
+                            </span>
+                          {/if}
+                          {#if prosthesis}
+                            <span class="rounded-full px-2.5 py-1 text-xs font-medium {prosthesis.cls}">
+                              {prosthesis.label}
+                            </span>
+                          {/if}
+                        </div>
+
+                        <!-- Botão de ação — área de toque grande -->
+                        <a
+                          href="/fila/{appt.referralId}/consulta/{appt.id}"
+                          class="mt-3 flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                        >
+                          Abrir consulta →
+                        </a>
+                      </li>
+                    {/each}
+                  </ul>
                 {/if}
               </div>
             {/each}
