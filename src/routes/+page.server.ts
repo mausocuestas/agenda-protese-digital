@@ -199,24 +199,32 @@ export const load: PageServerLoad = async ({ locals }) => {
   // ── Capacidade semanal — visível apenas para o coordenador ─────────────────────
   let weekCapacity = 0
   let weekOccupied = 0
+  let weeklyLimit = 0
   if (canApprove) {
     const { weekStart, weekEnd } = getWeekBoundaries()
 
     // Total de slots disponíveis nas agendas configuradas para esta semana
-    const schedules = await db.query.thirdPartySchedules.findMany({
-      where: and(
-        gte(thirdPartySchedules.scheduledDate, weekStart),
-        lte(thirdPartySchedules.scheduledDate, weekEnd)
-      ),
-      columns: {
-        startTime: true,
-        endTime: true,
-        lunchStart: true,
-        lunchEnd: true,
-        defaultDuration: true,
-      },
-    })
+    const [schedules, weeklyLimitConfig] = await Promise.all([
+      db.query.thirdPartySchedules.findMany({
+        where: and(
+          gte(thirdPartySchedules.scheduledDate, weekStart),
+          lte(thirdPartySchedules.scheduledDate, weekEnd)
+        ),
+        columns: {
+          startTime: true,
+          endTime: true,
+          lunchStart: true,
+          lunchEnd: true,
+          defaultDuration: true,
+        },
+      }),
+      db.query.systemConfigs.findFirst({
+        where: (c, { eq: eqFn }) => eqFn(c.key, 'weekly_patient_limit'),
+        columns: { value: true },
+      }),
+    ])
     weekCapacity = schedules.reduce((sum, s) => sum + scheduleSlots(s), 0)
+    weeklyLimit = parseInt(weeklyLimitConfig?.value ?? '0', 10)
 
     // Slots já ocupados por agendamentos confirmados ou pendentes esta semana
     const [occRow] = await db
@@ -300,6 +308,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     weekCapacity,
     weekOccupied,
     weekAvailable,
+    weeklyLimit,
     chartMonths,
     referralsByMonth,
     deliveriesByMonth,

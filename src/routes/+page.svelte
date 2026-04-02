@@ -158,7 +158,7 @@
   {#if data.canApprove}
     <section class="mb-8">
       <h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Capacidade esta semana</h2>
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <!-- Vagas disponíveis — destaque principal -->
         <a
           href="/configuracoes"
@@ -197,6 +197,20 @@
           <span class="text-3xl font-bold text-gray-900">{data.weekOccupied}</span>
           <span class="mt-1 text-sm font-medium text-gray-700">Agendamentos esta semana</span>
           <span class="mt-1 text-xs text-gray-400">Consultas marcadas (todos os status)</span>
+        </a>
+
+        <!-- Limite semanal configurado -->
+        <a
+          href="/configuracoes"
+          class="group flex flex-col rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+        >
+          <span class="text-3xl font-bold text-gray-900">
+            {data.weeklyLimit > 0 ? data.weeklyLimit : '—'}
+          </span>
+          <span class="mt-1 text-sm font-medium text-gray-700">Limite semanal</span>
+          <span class="mt-1 text-xs text-gray-400">
+            {data.weeklyLimit > 0 ? 'Meta configurada em /configurações' : 'Sem limite definido'}
+          </span>
         </a>
       </div>
     </section>

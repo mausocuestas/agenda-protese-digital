@@ -81,6 +81,14 @@ const CONFIG_DEFS = [
     min: 30,
     max: 730,
   },
+  {
+    key: 'weekly_patient_limit',
+    label: 'Limite Semanal de Pacientes',
+    description: 'Meta de agendamentos por semana (0 = sem limite definido)',
+    unit: 'pacientes',
+    min: 0,
+    max: 200,
+  },
 ] as const
 
 export const load: PageServerLoad = async ({ locals }) => {

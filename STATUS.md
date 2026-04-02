@@ -140,7 +140,7 @@
 
 #### Coordenador (Dashboard)
 - [x] Cálculo de previsibilidade: capacidade semanal vs. ocupação → "X vagas disponíveis" calculado de `third_party_schedules`
-- [ ] Campo configurável de limite de pacientes por semana (`system_configs`) — opcional, `third_party_schedules` já é a fonte de verdade
+- [x] Campo configurável de limite de pacientes por semana (`system_configs`, chave `weekly_patient_limit`) — exibido como 4º card na seção "Capacidade esta semana" do dashboard (2026-04-02)
 - [x] Central de notificações: não conformidades pendentes · aprovações pendentes · ligações de satisfação pendentes — coberto pelos badges de Qualidade e Custódia
 
 #### Terceirizado (`/minha-agenda`)
