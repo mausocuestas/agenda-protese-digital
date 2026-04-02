@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-02 (modal de contato rápido na fila — botão "Tel" sem navegar)
+**Última atualização:** 2026-04-02 (flag FLT de faltas consecutivas na fila — badge + botão Liberar)
 
 ---
 
@@ -148,6 +148,9 @@
 - [x] Seleção rápida de tempo de previsão — botões pill 30min / 60min / Não informado (sem digitação manual)
 - [ ] Offline-first *(futuro — internet atual é ok, mas pode falhar em campo)*
 
+#### Fila (Atendente / Coordenador)
+- [x] Flag FLT — badge amber (≥2 faltas consecutivas), vermelho (≥3); botão "Liberar" para coord/atendente a partir da 3ª falta consecutiva (2026-04-02)
+
 ---
 
 ### 10. Métricas detalhadas (`/metricas` — coordenador) ✅
@@ -164,7 +167,7 @@
 
 ## Decisões em aberto ⚠️
 
-- `consecutive_misses` em `appointments`: calcular em runtime ou campo desnormalizado? → **pendente confirmação**
+- `consecutive_misses`: decidido — **runtime** via query de outcomes ordenados por data DESC + streak em JS. Campo desnormalizado descartado. ✅
 - Página `/usuarios`: confirmar se o commit `4dfd2a7` cobre apenas listagem ou também criação/edição
 
 ### Lacunas identificadas no discovery (aguardam decisão operacional)

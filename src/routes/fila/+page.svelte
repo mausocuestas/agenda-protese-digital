@@ -24,9 +24,9 @@
   let statusFilter = $state<'all' | 'active' | 'pending_reassessment' | 'suspended'>('all')
 
   // Filtro de flags — conjunto de flags ativas; vazio = sem filtro
-  let flagFilters = $state(new Set<'ouv' | 'aci' | 'ids' | 'atr' | 'sus' | 'cnt'>())
+  let flagFilters = $state(new Set<'ouv' | 'aci' | 'ids' | 'atr' | 'sus' | 'cnt' | 'flt'>())
 
-  function toggleFlagFilter(flag: 'ouv' | 'aci' | 'ids' | 'atr' | 'sus' | 'cnt') {
+  function toggleFlagFilter(flag: 'ouv' | 'aci' | 'ids' | 'atr' | 'sus' | 'cnt' | 'flt') {
     const next = new Set(flagFilters)
     if (next.has(flag)) next.delete(flag)
     else next.add(flag)
@@ -45,7 +45,8 @@
         (flagFilters.has('ids') && i.isElderly) ||
         (flagFilters.has('atr') && i.isDelayed) ||
         (flagFilters.has('sus') && i.isSuspended) ||
-        (flagFilters.has('cnt') && i.noAnswerCount >= 3)
+        (flagFilters.has('cnt') && i.noAnswerCount >= 3) ||
+        (flagFilters.has('flt') && i.consecutiveMisses >= 2)
       )
     }
 
@@ -193,6 +194,14 @@
       >
         CON Sem resposta (3+)
       </button>
+      <button
+        onclick={() => toggleFlagFilter('flt')}
+        class="rounded px-2 py-1 text-xs font-bold transition-colors {flagFilters.has('flt')
+          ? 'bg-rose-600 text-white'
+          : 'bg-rose-50 text-rose-600 hover:bg-rose-100'}"
+      >
+        FLT Faltas consecutivas (2+)
+      </button>
       {#if flagFilters.size > 0}
         <button
           onclick={() => (flagFilters = new Set())}
@@ -303,7 +312,7 @@
                   </span>
                 {/if}
 
-                <!-- Liberar vaga: disponível para coordenador e atendente após 5 tentativas -->
+                <!-- Liberar vaga: disponível para coordenador e atendente após 5 tentativas sem resposta -->
                 {#if item.noAnswerCount >= 5 && (data.isCoordinator || data.isAttendant)}
                   <form method="POST" action="?/release_slot" use:enhance class="inline">
                     <input type="hidden" name="referralId" value={item.id} />
@@ -312,6 +321,33 @@
                       title="5 tentativas sem resposta — inativar encaminhamento e liberar vaga"
                       onclick={(e) => e.stopPropagation()}
                       class="rounded px-1.5 py-0.5 text-xs font-bold bg-red-600 text-white hover:bg-red-700"
+                    >
+                      Liberar
+                    </button>
+                  </form>
+                {/if}
+
+                <!-- FLT: badge de faltas consecutivas — alerta a partir da 2ª, vermelho a partir da 3ª -->
+                {#if item.consecutiveMisses >= 2}
+                  <span
+                    title="{item.consecutiveMisses} falta{item.consecutiveMisses !== 1 ? 's' : ''} consecutiva{item.consecutiveMisses !== 1 ? 's' : ''}"
+                    class="rounded px-1.5 py-0.5 text-xs font-bold {item.consecutiveMisses >= 3
+                      ? 'bg-rose-100 text-rose-700'
+                      : 'bg-rose-50 text-rose-500'}"
+                  >
+                    FLT {item.consecutiveMisses}
+                  </span>
+                {/if}
+
+                <!-- Liberar vaga por faltas consecutivas: coordenador e atendente a partir da 3ª falta -->
+                {#if item.consecutiveMisses >= 3 && (data.isCoordinator || data.isAttendant)}
+                  <form method="POST" action="?/release_slot" use:enhance class="inline">
+                    <input type="hidden" name="referralId" value={item.id} />
+                    <button
+                      type="submit"
+                      title="{item.consecutiveMisses} faltas consecutivas — inativar encaminhamento e liberar vaga"
+                      onclick={(e) => e.stopPropagation()}
+                      class="rounded px-1.5 py-0.5 text-xs font-bold bg-rose-600 text-white hover:bg-rose-700"
                     >
                       Liberar
                     </button>

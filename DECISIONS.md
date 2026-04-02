@@ -191,6 +191,17 @@
 
 ---
 
+## 2026-04-02: consecutive_misses — cálculo em runtime
+
+**Decisão**: Calcular faltas consecutivas em runtime via query de outcomes de `appointments`, ordenados por `scheduled_date DESC`, com streak calculado em JS no `load` da fila.
+**Motivo**: Volume baixo (sistema municipal); campo desnormalizado exigiria atualização a cada registro de outcome e criaria risco de inconsistência — complexidade sem ganho real.
+**Alternativas descartadas**:
+- Campo `consecutive_misses` em `appointments` ou `referrals` — desnormalização desnecessária; sync manual propenso a bugs
+**Trade-off aceito**: Query adicional por carregamento da fila; irrelevante para o volume esperado.
+**Revisável quando**: Volume crescer a ponto de a query impactar latência perceptível (improvável neste domínio).
+
+---
+
 ## 2026-04-01: Estratégia de migração de schema — ALTER TABLE direto via MCP
 
 **Decisão**: Mudanças de schema são aplicadas com `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` via MCP Neon, nunca via `pnpm db:push`.

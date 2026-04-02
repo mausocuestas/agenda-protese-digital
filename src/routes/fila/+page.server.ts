@@ -1,8 +1,8 @@
 import type { PageServerLoad, Actions } from './$types'
 import { redirect, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
-import { referrals, estabelecimentos, unitResponsibilities, systemConfigs, contactAttempts } from '$lib/server/db/index'
-import { isNull, inArray, eq, desc, asc, and, count } from 'drizzle-orm'
+import { referrals, estabelecimentos, unitResponsibilities, systemConfigs, contactAttempts, appointments } from '$lib/server/db/index'
+import { isNull, isNotNull, inArray, eq, desc, asc, and, count } from 'drizzle-orm'
 import { calcAge, daysSince } from '$lib/utils'
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -106,6 +106,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   // Conta tentativas de contato sem resposta por encaminhamento — alerta CON
   const referralIds = rows.map((r) => r.id)
   const noAnswerMap = new Map<number, number>()
+  const consecutiveMissesMap = new Map<number, number>()
+
   if (referralIds.length > 0) {
     const noAnswerCounts = await db
       .select({ referralId: contactAttempts.referralId, total: count() })
@@ -114,6 +116,32 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       .groupBy(contactAttempts.referralId)
     for (const row of noAnswerCounts) {
       noAnswerMap.set(row.referralId, row.total)
+    }
+
+    // Calcula faltas consecutivas — ordena do mais recente para o mais antigo e conta a sequência inicial de 'absent'
+    const apptOutcomes = await db
+      .select({
+        referralId: appointments.referralId,
+        outcome: appointments.outcome,
+        scheduledDate: appointments.scheduledDate,
+        id: appointments.id,
+      })
+      .from(appointments)
+      .where(and(isNotNull(appointments.outcome), inArray(appointments.referralId, referralIds)))
+      .orderBy(desc(appointments.scheduledDate), desc(appointments.id))
+
+    const byReferral = new Map<number, string[]>()
+    for (const appt of apptOutcomes) {
+      if (!byReferral.has(appt.referralId)) byReferral.set(appt.referralId, [])
+      byReferral.get(appt.referralId)!.push(appt.outcome!)
+    }
+    for (const [refId, outcomes] of byReferral) {
+      let streak = 0
+      for (const outcome of outcomes) {
+        if (outcome === 'absent') streak++
+        else break
+      }
+      if (streak > 0) consecutiveMissesMap.set(refId, streak)
     }
   }
 
@@ -136,6 +164,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       serviceOrderNumber: r.serviceOrderNumber,
       prosthesisTypes: r.prosthesisTypes.map((p) => p.prosthesisType.name),
       noAnswerCount: noAnswerMap.get(r.id) ?? 0,
+      consecutiveMisses: consecutiveMissesMap.get(r.id) ?? 0,
     }
   })
 
