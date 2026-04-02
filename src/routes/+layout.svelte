@@ -57,6 +57,12 @@
       notificationKey: null,
     },
     {
+      href: '/metricas',
+      label: 'Métricas',
+      roles: ['coordinator'],
+      notificationKey: null,
+    },
+    {
       href: '/usuarios',
       label: 'Usuários',
       roles: ['coordinator'],

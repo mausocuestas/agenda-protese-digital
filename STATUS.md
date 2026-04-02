@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-01 (item 9 coord. — capacidade semanal no dashboard)
+**Última atualização:** 2026-04-01 (item 10 — página /metricas para coordenador)
 
 ---
 
@@ -150,13 +150,15 @@
 
 ---
 
-### 10. Métricas detalhadas (`/metricas` — coordenador)
-- [ ] Atendidos por unidade de saúde
-- [ ] Próteses entregues por tipo e por faixa etária
-- [ ] Satisfação pós-entrega (por tipo, por período)
-- [ ] Não conformidades por critério
-- [ ] Recusas por fase
-- [ ] Tempo médio de espera e de conclusão
+### 10. Métricas detalhadas (`/metricas` — coordenador) ✅
+- [x] Atendidos por unidade de saúde (barras horizontais)
+- [x] Próteses entregues por tipo e por faixa etária (barras)
+- [x] Satisfação pós-entrega (donut com ótimo / razoável / dificuldades)
+- [x] Não conformidades por critério (adaptação, oclusão, material)
+- [x] Recusas por fase (escaneamento, ajustes, entrega)
+- [x] Tempo médio de espera (introdução → 1ª consulta) e conclusão (introdução → recebimento)
+- [x] Filtro de período: 3m / 6m / 12m / este ano / tudo
+- [x] Link "Métricas" adicionado na sidebar (visível apenas para coordenador)
 
 ---
 
