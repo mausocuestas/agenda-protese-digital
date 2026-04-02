@@ -7,8 +7,8 @@
 
 ## Fase Atual
 
-**Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-02 (flag FLT de faltas consecutivas na fila — badge + botão Liberar)
+**Fase:** Funcionalidades core completas — próxima etapa: limpeza de tabelas legadas e retomada do fluxo normal de migrations  
+**Última atualização:** 2026-04-02 (revisão de sessão — todas as 10 seções concluídas; próxima tarefa identificada)
 
 ---
 
