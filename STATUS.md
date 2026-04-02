@@ -168,7 +168,7 @@
 ## Decisões em aberto ⚠️
 
 - `consecutive_misses`: decidido — **runtime** via query de outcomes ordenados por data DESC + streak em JS. Campo desnormalizado descartado. ✅
-- Página `/usuarios`: confirmar se o commit `4dfd2a7` cobre apenas listagem ou também criação/edição
+- ~~Página `/usuarios`: confirmar se o commit `4dfd2a7` cobre apenas listagem ou também criação/edição~~ — confirmado: cobre listagem, criação, edição inline (nome, perfil, unidade padrão), unidades adicionais de dentistas e toggle ativo/inativo. CRUD completo. ✅
 
 ### Lacunas identificadas no discovery (aguardam decisão operacional)
 
