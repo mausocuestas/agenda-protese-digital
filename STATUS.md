@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Implementação — Funcionalidades core concluídas, pendências de automação e refinamentos  
-**Última atualização:** 2026-04-02 (modal de histórico do paciente no formulário de encaminhamento)
+**Última atualização:** 2026-04-02 (modal de contato rápido na fila — botão "Tel" sem navegar)
 
 ---
 
@@ -136,7 +136,7 @@
 #### Atendente (Painel principal)
 - [x] Notificações por badge por módulo: Fila · Custódia · Qualidade — `src/lib/server/notifications.ts` + sidebar em `+layout.svelte`
 - [x] Filtro de unidades com 3 níveis: "Minha unidade" · "Sob responsabilidade" · "Todas" — toggle em `/fila` via `?scope=`, consulta `unit_responsibilities` no servidor
-- [ ] Verificar se modal de contato é suficientemente leve (sem abrir ficha completa)
+- [x] Modal de contato rápido na fila — botão "Tel" em cada linha abre overlay com canal, resultado, hora e notas; salva via `?/add_contact` sem navegar (2026-04-02)
 
 #### Coordenador (Dashboard)
 - [x] Cálculo de previsibilidade: capacidade semanal vs. ocupação → "X vagas disponíveis" calculado de `third_party_schedules`

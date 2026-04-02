@@ -6,6 +6,20 @@
 
   let { data }: { data: PageData } = $props()
 
+  // Modal de contato rápido — registra tentativa sem abrir a ficha completa
+  let contactModal = $state<{ referralId: number; patientName: string } | null>(null)
+
+  function openContactModal(referralId: number, patientName: string) {
+    contactModal = { referralId, patientName }
+  }
+
+  // Hora atual formatada para input datetime-local
+  function nowLocal(): string {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+    return d.toISOString().slice(0, 16)
+  }
+
   // Filtro de status — "all" mostra active + pending_reassessment + suspended
   let statusFilter = $state<'all' | 'active' | 'pending_reassessment' | 'suspended'>('all')
 
@@ -304,6 +318,18 @@
                   </form>
                 {/if}
 
+                <!-- Botão de contato rápido — coordenador e atendente -->
+                {#if data.isCoordinator || data.isAttendant}
+                  <button
+                    type="button"
+                    title="Registrar tentativa de contato"
+                    onclick={(e) => { e.stopPropagation(); openContactModal(item.id, item.patientName) }}
+                    class="rounded px-1.5 py-0.5 text-xs font-bold bg-gray-100 text-gray-500 hover:bg-blue-50 hover:text-blue-600"
+                  >
+                    Tel
+                  </button>
+                {/if}
+
               </div>
             </td>
 
@@ -350,3 +376,110 @@
     </table>
   </div>
 </div>
+
+<!-- Modal de contato rápido -->
+{#if contactModal}
+  <!-- Overlay -->
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+    onclick={() => (contactModal = null)}
+    role="dialog"
+    aria-modal="true"
+  >
+    <!-- Card do modal — clique interno não fecha o overlay -->
+    <div class="w-full max-w-sm rounded-lg bg-white shadow-xl" onclick={(e) => e.stopPropagation()}>
+      <div class="border-b border-gray-100 px-5 py-4">
+        <p class="text-xs text-gray-400">Registrar contato</p>
+        <p class="text-sm font-semibold text-gray-900">{contactModal.patientName}</p>
+      </div>
+
+      <form
+        method="POST"
+        action="?/add_contact"
+        use:enhance={() => {
+          return async ({ result, update }) => {
+            if (result.type === 'success') {
+              contactModal = null
+            }
+            await update()
+          }
+        }}
+        class="space-y-4 px-5 py-4"
+      >
+        <input type="hidden" name="referralId" value={contactModal.referralId} />
+
+        <!-- Canal -->
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1.5">Canal</label>
+          <div class="flex gap-2">
+            {#each [['phone', 'Telefone'], ['whatsapp', 'WhatsApp'], ['in_person', 'Presencial']] as [val, label]}
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="channel" value={val} required class="accent-blue-600" />
+                <span class="text-sm text-gray-700">{label}</span>
+              </label>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Resultado -->
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1.5">Resultado</label>
+          <div class="flex gap-2">
+            {#each [['no_answer', 'Sem resposta'], ['confirmed', 'Confirmado'], ['cancelled', 'Cancelou']] as [val, label]}
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="result" value={val} required class="accent-blue-600" />
+                <span class="text-sm text-gray-700">{label}</span>
+              </label>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Data/hora da tentativa -->
+        <div>
+          <label for="attemptedAt" class="block text-xs font-medium text-gray-600 mb-1">
+            Data e hora da tentativa
+          </label>
+          <input
+            type="datetime-local"
+            id="attemptedAt"
+            name="attemptedAt"
+            required
+            value={nowLocal()}
+            class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
+          />
+        </div>
+
+        <!-- Notas (opcional) -->
+        <div>
+          <label for="contactNotes" class="block text-xs font-medium text-gray-600 mb-1">
+            Observações <span class="font-normal text-gray-400">(opcional)</span>
+          </label>
+          <textarea
+            id="contactNotes"
+            name="notes"
+            rows="2"
+            placeholder="Ex: número errado, pediu para ligar depois das 14h…"
+            class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 placeholder-gray-300 focus:border-gray-400 focus:outline-none resize-none"
+          ></textarea>
+        </div>
+
+        <!-- Botões -->
+        <div class="flex justify-end gap-2 pt-1">
+          <button
+            type="button"
+            onclick={() => (contactModal = null)}
+            class="rounded-md px-4 py-2 text-sm text-gray-500 hover:bg-gray-100"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+          >
+            Salvar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}

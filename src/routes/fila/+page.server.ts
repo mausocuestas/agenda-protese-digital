@@ -193,6 +193,36 @@ export const actions: Actions = {
     return { toggled: true }
   },
 
+  // Registra tentativa de contato com o paciente diretamente da fila (sem abrir ficha completa)
+  add_contact: async ({ locals, request }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+    if (!['coordinator', 'attendant'].includes(user.role)) return fail(403, { error: 'Sem permissão' })
+
+    const data = await request.formData()
+    const referralId = parseInt(data.get('referralId') as string, 10)
+    const channel = data.get('channel') as string
+    const result = data.get('result') as string
+    const notes = (data.get('notes') as string)?.trim() || null
+    const attemptedAtRaw = data.get('attemptedAt') as string
+
+    if (isNaN(referralId)) return fail(400, { error: 'ID inválido' })
+    if (!['phone', 'whatsapp', 'in_person'].includes(channel)) return fail(422, { error: 'Canal inválido' })
+    if (!['confirmed', 'no_answer', 'cancelled'].includes(result)) return fail(422, { error: 'Resultado inválido' })
+    if (!attemptedAtRaw) return fail(422, { error: 'Data/hora obrigatória' })
+
+    await db.insert(contactAttempts).values({
+      referralId,
+      channel: channel as 'phone' | 'whatsapp' | 'in_person',
+      result: result as 'confirmed' | 'no_answer' | 'cancelled',
+      notes,
+      attemptedAt: new Date(attemptedAtRaw),
+      contactedBy: user.appId,
+    })
+
+    return { contactAdded: true }
+  },
+
   // Coordenador ou atendente libera vaga após 5 tentativas sem resposta
   release_slot: async ({ locals, request }) => {
     const user = locals.user
