@@ -7,12 +7,25 @@
 
 ## Fase Atual
 
-**Fase:** Funcionalidades core completas — próxima etapa: limpeza de tabelas legadas e retomada do fluxo normal de migrations  
-**Última atualização:** 2026-04-02 (fix: validação de janela de visita agora usa timeToMinutes — borda inicial inclusiva)
+**Fase:** Funcionalidades core completas — sistema de componentes e padronização visual implementados  
+**Última atualização:** 2026-04-03 (ux: padronização visual completa — sistema de componentes, tokens OKLCH, redesign /agenda, sidebar colapsável)
 
 ---
 
 ## O que está concluído ✅
+
+### UX/UI — Padronização visual (2026-04-03)
+- Tokens OKLCH completos em `src/app.css`: neutros (`--color-neutral-*`), semânticas (`success/danger/warning`), sombras
+- Componentes de layout: `src/lib/components/page-header.svelte` — header padronizado com slot de Primary Action
+- Átomos em `src/lib/components/ui/`: `button.svelte` (4 variantes), `field.svelte` (label+input+erro), `badge.svelte` (4 variantes semânticas)
+- Moléculas em `src/lib/components/ui/`: `modal.svelte` (fecha com Esc/clique fora), `empty-state.svelte`
+- Redesign completo de `/agenda`:
+  - Grid de slots por visita (ocupados + vagos) usando `generateSlots()` já existente
+  - Datas em ordem decrescente (mais recente primeiro)
+  - Slot vago: clique abre modal de agendamento com horário pré-preenchido
+  - Slot ocupado: clique abre modal com dados do paciente (CPF, nascimento, telefone, tipos de prótese), histórico de consultas e 3 ações (alterar horário, trocar paciente, mover para outra visita)
+  - Novos actions no servidor: `move_appointment`, `swap_patient`
+- Sidebar colapsável (`+layout.svelte`): toggle com seta, estado persistido em `localStorage`, modo colapsado mostra inicial + ponto de badge
 
 ### Discovery e produto
 - Jornada do paciente completamente mapeada (5 fases)

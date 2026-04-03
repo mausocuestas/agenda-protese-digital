@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  /* Escala de cores primária — azul saúde */
-  --color-primary-50: oklch(97% 0.02 240);
+  /* ─── Cores primárias — azul saúde ─────────────────────── */
+  --color-primary-50:  oklch(97% 0.02 240);
   --color-primary-100: oklch(93% 0.05 240);
   --color-primary-200: oklch(87% 0.09 240);
   --color-primary-300: oklch(79% 0.13 240);
@@ -13,17 +13,56 @@
   --color-primary-800: oklch(30% 0.12 240);
   --color-primary-900: oklch(22% 0.08 240);
 
-  /* Status dos encaminhamentos */
-  --color-status-active: oklch(60% 0.17 145);
-  --color-status-pending: oklch(65% 0.18 65);
-  --color-status-suspended: oklch(60% 0.16 30);
-  --color-status-inactive: oklch(50% 0.04 240);
+  /* ─── Neutros (substituem gray-* hardcoded) ─────────────── */
+  --color-neutral-50:  oklch(98% 0.005 240);
+  --color-neutral-100: oklch(95% 0.010 240);
+  --color-neutral-200: oklch(90% 0.012 240);
+  --color-neutral-300: oklch(82% 0.012 240);
+  --color-neutral-400: oklch(68% 0.012 240);
+  --color-neutral-500: oklch(54% 0.012 240);
+  --color-neutral-600: oklch(43% 0.012 240);
+  --color-neutral-700: oklch(34% 0.012 240);
+  --color-neutral-800: oklch(25% 0.010 240);
+  --color-neutral-900: oklch(17% 0.008 240);
 
-  /* Fontes */
+  /* ─── Semânticas ────────────────────────────────────────── */
+  /* Sucesso — verde */
+  --color-success-50:  oklch(97% 0.02 145);
+  --color-success-100: oklch(92% 0.06 145);
+  --color-success-200: oklch(85% 0.10 145);
+  --color-success-600: oklch(48% 0.17 145);
+  --color-success-700: oklch(40% 0.15 145);
+
+  /* Perigo — vermelho */
+  --color-danger-50:   oklch(97% 0.02 25);
+  --color-danger-100:  oklch(92% 0.06 25);
+  --color-danger-200:  oklch(85% 0.10 25);
+  --color-danger-500:  oklch(56% 0.20 25);
+  --color-danger-600:  oklch(48% 0.19 25);
+  --color-danger-700:  oklch(40% 0.16 25);
+
+  /* Aviso — âmbar */
+  --color-warning-50:  oklch(97% 0.02 65);
+  --color-warning-100: oklch(93% 0.07 65);
+  --color-warning-200: oklch(87% 0.12 65);
+  --color-warning-600: oklch(52% 0.18 65);
+  --color-warning-700: oklch(43% 0.15 65);
+
+  /* ─── Status dos encaminhamentos (mantidos) ─────────────── */
+  --color-status-active:    oklch(60% 0.17 145);
+  --color-status-pending:   oklch(65% 0.18 65);
+  --color-status-suspended: oklch(60% 0.16 30);
+  --color-status-inactive:  oklch(50% 0.04 240);
+
+  /* ─── Tipografia ────────────────────────────────────────── */
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 
-  /* Raios padrão */
+  /* ─── Raios ─────────────────────────────────────────────── */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
+
+  /* ─── Sombras ───────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px 0 oklch(17% 0.008 240 / 0.06);
+  --shadow-md: 0 4px 6px -1px oklch(17% 0.008 240 / 0.08), 0 2px 4px -2px oklch(17% 0.008 240 / 0.05);
 }
