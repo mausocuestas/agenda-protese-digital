@@ -79,7 +79,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
   }
 
-  const result = allPatients.map((p) => {
+  const patientList = allPatients.map((p) => {
     const referral = latestReferralByPatient[p.id]
 
     if (!referral) {
@@ -113,5 +113,15 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
   })
 
-  return { patients: result }
+  // Ordena por próxima consulta decrescente (nulos ao final)
+  patientList.sort((a, b) => {
+    if (a.nextAppointmentDate && b.nextAppointmentDate) {
+      return a.nextAppointmentDate < b.nextAppointmentDate ? 1 : -1
+    }
+    if (a.nextAppointmentDate) return -1
+    if (b.nextAppointmentDate) return 1
+    return 0
+  })
+
+  return { patients: patientList }
 }

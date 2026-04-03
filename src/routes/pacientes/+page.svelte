@@ -51,17 +51,26 @@
     return `${p.appointmentCount} consulta${p.appointmentCount > 1 ? 's' : ''} registrada${p.appointmentCount > 1 ? 's' : ''}`
   }
 
-  // Lista filtrada por status e nome
+  // Remove acentos para busca insensível a acentuação
+  function normalize(s: string) {
+    return s
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+  }
+
+  // Lista filtrada por status e nome/CPF (case-insensitive, accent-insensitive, parcial)
   let filtered = $derived(
     data.patients.filter((p) => {
       const matchStatus =
         filterStatus === 'all' ||
         (filterStatus === 'none' && !p.status) ||
         p.status === filterStatus
+      const term = search.trim()
       const matchSearch =
-        search.trim() === '' ||
-        p.fullName.toLowerCase().includes(search.trim().toLowerCase()) ||
-        p.cpf.includes(search.trim().replace(/\D/g, ''))
+        term === '' ||
+        normalize(p.fullName).includes(normalize(term)) ||
+        p.cpf.includes(term.replace(/\D/g, ''))
       return matchStatus && matchSearch
     })
   )

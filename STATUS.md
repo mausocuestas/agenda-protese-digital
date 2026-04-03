@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Funcionalidades core completas — próxima etapa: limpeza de tabelas legadas e retomada do fluxo normal de migrations  
-**Última atualização:** 2026-04-02 (reordenação das seções em "Registrar resultado" — Custódia e Tentativas antes de Resultado)
+**Última atualização:** 2026-04-02 (busca de pacientes: accent-insensitive + ordenação por próxima consulta desc)
 
 ---
 
@@ -50,7 +50,7 @@
 | FASE 5 — Conformidade, aprovação coord, ligação de satisfação, consulta na unidade | `src/routes/qualidade/` |
 | Agenda do terceirizado (lista do dia) | `src/routes/minha-agenda/` |
 | Agenda semanal (visão do coordenador/atendente) | `src/routes/agenda/` |
-| Lista e edição de pacientes | `src/routes/pacientes/` |
+| Lista e edição de pacientes (busca por nome/CPF accent-insensitive, ordem por próx. consulta) | `src/routes/pacientes/` |
 | Configurações — parâmetros numéricos e tipos de prótese | `src/routes/configuracoes/` |
 | Configurações — almoço e duração padrão dos slots por agenda do terceirizado | `src/routes/configuracoes/` |
 | Status suspenso na fila com toggle inline (coordenador) | `src/routes/fila/` |
