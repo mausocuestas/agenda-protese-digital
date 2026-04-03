@@ -160,200 +160,6 @@
       </dl>
     </section>
 
-    <!-- Resultado da consulta -->
-    <section class="rounded-lg border border-gray-200 bg-white">
-      <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Resultado</h2>
-        {#if data.canOverrideOutcome}
-          <button
-            onclick={() => (editingOutcome = !editingOutcome)}
-            class="text-xs text-blue-600 hover:text-blue-800"
-          >
-            {editingOutcome ? 'Cancelar' : 'Editar resultado'}
-          </button>
-        {/if}
-      </div>
-
-      {#if data.appointment.outcome && editingOutcome}
-        <!-- Coordenador corrigindo resultado já registrado -->
-        <form
-          method="POST"
-          action="?/edit_outcome"
-          use:enhance
-          class="space-y-5 px-5 py-4"
-        >
-          <fieldset>
-            <legend class="text-sm font-medium text-gray-700">Resultado correto</legend>
-            <div class="mt-3 space-y-2.5">
-              {#each [['attended', 'Compareceu'], ['absent', 'Faltou (sem avisar)'], ['refused', 'Recusado pelo protético']] as [val, label]}
-                <label class="flex cursor-pointer items-center gap-3">
-                  <input
-                    type="radio"
-                    name="outcome"
-                    value={val}
-                    bind:group={editOutcomeValue}
-                  />
-                  <span class="text-sm text-gray-800">{label}</span>
-                </label>
-              {/each}
-            </div>
-          </fieldset>
-
-          {#if editOutcomeValue === 'refused'}
-            <div>
-              <label for="editRefusedReason" class="block text-sm font-medium text-gray-700">
-                Motivo da recusa <span class="text-red-500">*</span>
-              </label>
-              <textarea
-                id="editRefusedReason"
-                name="refusedReason"
-                rows="2"
-                required
-                value={data.appointment.refusedReason ?? ''}
-                class="mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
-              ></textarea>
-            </div>
-          {/if}
-
-          {#if editOutcomeValue === 'attended'}
-            <div>
-              <p class="text-sm font-medium text-gray-700">Estimativa de duração da próxima consulta</p>
-              <div class="mt-2 flex gap-5">
-                <label class="flex cursor-pointer items-center gap-2">
-                  <input type="radio" name="nextDurationEstimate" value="30"
-                    checked={data.appointment.nextDurationEstimate === 30} />
-                  <span class="text-sm text-gray-800">30 min</span>
-                </label>
-                <label class="flex cursor-pointer items-center gap-2">
-                  <input type="radio" name="nextDurationEstimate" value="60"
-                    checked={data.appointment.nextDurationEstimate === 60} />
-                  <span class="text-sm text-gray-800">60 min</span>
-                </label>
-                <label class="flex cursor-pointer items-center gap-2">
-                  <input type="radio" name="nextDurationEstimate" value=""
-                    checked={!data.appointment.nextDurationEstimate} />
-                  <span class="text-sm text-gray-500">Não informado</span>
-                </label>
-              </div>
-            </div>
-          {/if}
-
-          <div class="flex justify-end border-t border-gray-100 pt-4">
-            <button
-              type="submit"
-              class="rounded-md bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-700"
-            >
-              Salvar correção
-            </button>
-          </div>
-        </form>
-
-      {:else if data.appointment.outcome}
-        <!-- Resultado já registrado — somente leitura -->
-        <div class="px-5 py-4">
-          <div class="flex items-center gap-3">
-            <span class="rounded-full px-3 py-1 text-sm font-medium {outcomeClass[data.appointment.outcome]}">
-              {outcomeLabel[data.appointment.outcome]}
-            </span>
-            {#if data.appointment.attendedAt}
-              <span class="text-sm text-gray-500">{fmtDateTime(data.appointment.attendedAt)}</span>
-            {/if}
-          </div>
-          {#if data.appointment.refusedReason}
-            <p class="mt-2 text-sm text-orange-700">Motivo: {data.appointment.refusedReason}</p>
-          {/if}
-          {#if data.appointment.nextDurationEstimate}
-            <p class="mt-2 text-sm text-gray-600">
-              Estimativa duração próxima consulta:
-              <strong>{data.appointment.nextDurationEstimate} minutos</strong>
-            </p>
-          {/if}
-        </div>
-
-      {:else if data.canEditOutcome}
-        <!-- Formulário de registro de resultado — botões grandes para uso em campo -->
-        <form
-          method="POST"
-          action="?/register_outcome"
-          use:enhance
-          class="space-y-5 px-5 py-4"
-        >
-          <fieldset>
-            <legend class="text-sm font-medium text-gray-700">
-              O paciente compareceu à consulta? <span class="text-red-500">*</span>
-            </legend>
-            <!-- Botões de seleção com área de toque grande -->
-            <div class="mt-3 grid grid-cols-1 gap-3">
-              {#each [
-                { val: 'attended', label: 'Compareceu', icon: '✓', sel: 'border-green-500 bg-green-50 text-green-800', idle: 'border-gray-300 bg-white text-gray-700' },
-                { val: 'absent',   label: 'Faltou (sem avisar)', icon: '✗', sel: 'border-red-500 bg-red-50 text-red-800', idle: 'border-gray-300 bg-white text-gray-700' },
-                { val: 'refused',  label: 'Recusado pelo protético', icon: '⊘', sel: 'border-orange-500 bg-orange-50 text-orange-800', idle: 'border-gray-300 bg-white text-gray-700' },
-              ] as opt}
-                <label class="flex cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-4 transition-colors
-                  {selectedOutcome === opt.val ? opt.sel : opt.idle}">
-                  <input
-                    type="radio"
-                    name="outcome"
-                    value={opt.val}
-                    bind:group={selectedOutcome}
-                    class="sr-only"
-                  />
-                  <span class="text-xl leading-none">{opt.icon}</span>
-                  <span class="text-base font-medium">{opt.label}</span>
-                </label>
-              {/each}
-            </div>
-          </fieldset>
-
-          {#if selectedOutcome === 'refused'}
-            <div>
-              <label for="refusedReason" class="block text-sm font-medium text-gray-700">
-                Motivo da recusa <span class="text-red-500">*</span>
-              </label>
-              <textarea
-                id="refusedReason"
-                name="refusedReason"
-                rows="2"
-                required
-                placeholder="Descreva o motivo..."
-                class="mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
-              ></textarea>
-            </div>
-          {/if}
-
-          {#if selectedOutcome === 'attended'}
-            <div>
-              <p class="text-sm font-medium text-gray-700">Estimativa de duração da próxima consulta</p>
-              <div class="mt-2 grid grid-cols-3 gap-2">
-                {#each [{ val: '30', label: '30 min' }, { val: '60', label: '60 min' }, { val: '', label: 'Não informado' }] as dur}
-                  <label class="flex cursor-pointer items-center justify-center rounded-lg border-2 py-3 text-sm font-medium transition-colors
-                    has-checked:border-gray-900 has-checked:bg-gray-900 has-checked:text-white
-                    border-gray-300 bg-white text-gray-700">
-                    <input type="radio" name="nextDurationEstimate" value={dur.val}
-                      checked={dur.val === ''} class="sr-only" />
-                    {dur.label}
-                  </label>
-                {/each}
-              </div>
-            </div>
-          {/if}
-
-          <div class="border-t border-gray-100 pt-4">
-            <button
-              type="submit"
-              disabled={!selectedOutcome}
-              class="w-full rounded-xl bg-gray-900 py-4 text-base font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
-            >
-              Salvar resultado
-            </button>
-          </div>
-        </form>
-
-      {:else}
-        <p class="px-5 py-6 text-sm text-gray-400">Resultado ainda não registrado.</p>
-      {/if}
-    </section>
-
     <!-- Custódia da prótese (consultas 2, 3 e 4) -->
     {#if data.hasProsthesisCustody}
       <section class="rounded-lg border border-gray-200 bg-white">
@@ -577,6 +383,200 @@
             </li>
           {/each}
         </ul>
+      {/if}
+    </section>
+
+    <!-- Resultado da consulta -->
+    <section class="rounded-lg border border-gray-200 bg-white">
+      <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Resultado</h2>
+        {#if data.canOverrideOutcome}
+          <button
+            onclick={() => (editingOutcome = !editingOutcome)}
+            class="text-xs text-blue-600 hover:text-blue-800"
+          >
+            {editingOutcome ? 'Cancelar' : 'Editar resultado'}
+          </button>
+        {/if}
+      </div>
+
+      {#if data.appointment.outcome && editingOutcome}
+        <!-- Coordenador corrigindo resultado já registrado -->
+        <form
+          method="POST"
+          action="?/edit_outcome"
+          use:enhance
+          class="space-y-5 px-5 py-4"
+        >
+          <fieldset>
+            <legend class="text-sm font-medium text-gray-700">Resultado correto</legend>
+            <div class="mt-3 space-y-2.5">
+              {#each [['attended', 'Compareceu'], ['absent', 'Faltou (sem avisar)'], ['refused', 'Recusado pelo protético']] as [val, label]}
+                <label class="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="radio"
+                    name="outcome"
+                    value={val}
+                    bind:group={editOutcomeValue}
+                  />
+                  <span class="text-sm text-gray-800">{label}</span>
+                </label>
+              {/each}
+            </div>
+          </fieldset>
+
+          {#if editOutcomeValue === 'refused'}
+            <div>
+              <label for="editRefusedReason" class="block text-sm font-medium text-gray-700">
+                Motivo da recusa <span class="text-red-500">*</span>
+              </label>
+              <textarea
+                id="editRefusedReason"
+                name="refusedReason"
+                rows="2"
+                required
+                value={data.appointment.refusedReason ?? ''}
+                class="mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
+              ></textarea>
+            </div>
+          {/if}
+
+          {#if editOutcomeValue === 'attended'}
+            <div>
+              <p class="text-sm font-medium text-gray-700">Estimativa de duração da próxima consulta</p>
+              <div class="mt-2 flex gap-5">
+                <label class="flex cursor-pointer items-center gap-2">
+                  <input type="radio" name="nextDurationEstimate" value="30"
+                    checked={data.appointment.nextDurationEstimate === 30} />
+                  <span class="text-sm text-gray-800">30 min</span>
+                </label>
+                <label class="flex cursor-pointer items-center gap-2">
+                  <input type="radio" name="nextDurationEstimate" value="60"
+                    checked={data.appointment.nextDurationEstimate === 60} />
+                  <span class="text-sm text-gray-800">60 min</span>
+                </label>
+                <label class="flex cursor-pointer items-center gap-2">
+                  <input type="radio" name="nextDurationEstimate" value=""
+                    checked={!data.appointment.nextDurationEstimate} />
+                  <span class="text-sm text-gray-500">Não informado</span>
+                </label>
+              </div>
+            </div>
+          {/if}
+
+          <div class="flex justify-end border-t border-gray-100 pt-4">
+            <button
+              type="submit"
+              class="rounded-md bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-700"
+            >
+              Salvar correção
+            </button>
+          </div>
+        </form>
+
+      {:else if data.appointment.outcome}
+        <!-- Resultado já registrado — somente leitura -->
+        <div class="px-5 py-4">
+          <div class="flex items-center gap-3">
+            <span class="rounded-full px-3 py-1 text-sm font-medium {outcomeClass[data.appointment.outcome]}">
+              {outcomeLabel[data.appointment.outcome]}
+            </span>
+            {#if data.appointment.attendedAt}
+              <span class="text-sm text-gray-500">{fmtDateTime(data.appointment.attendedAt)}</span>
+            {/if}
+          </div>
+          {#if data.appointment.refusedReason}
+            <p class="mt-2 text-sm text-orange-700">Motivo: {data.appointment.refusedReason}</p>
+          {/if}
+          {#if data.appointment.nextDurationEstimate}
+            <p class="mt-2 text-sm text-gray-600">
+              Estimativa duração próxima consulta:
+              <strong>{data.appointment.nextDurationEstimate} minutos</strong>
+            </p>
+          {/if}
+        </div>
+
+      {:else if data.canEditOutcome}
+        <!-- Formulário de registro de resultado — botões grandes para uso em campo -->
+        <form
+          method="POST"
+          action="?/register_outcome"
+          use:enhance
+          class="space-y-5 px-5 py-4"
+        >
+          <fieldset>
+            <legend class="text-sm font-medium text-gray-700">
+              O paciente compareceu à consulta? <span class="text-red-500">*</span>
+            </legend>
+            <!-- Botões de seleção com área de toque grande -->
+            <div class="mt-3 grid grid-cols-1 gap-3">
+              {#each [
+                { val: 'attended', label: 'Compareceu', icon: '✓', sel: 'border-green-500 bg-green-50 text-green-800', idle: 'border-gray-300 bg-white text-gray-700' },
+                { val: 'absent',   label: 'Faltou (sem avisar)', icon: '✗', sel: 'border-red-500 bg-red-50 text-red-800', idle: 'border-gray-300 bg-white text-gray-700' },
+                { val: 'refused',  label: 'Recusado pelo protético', icon: '⊘', sel: 'border-orange-500 bg-orange-50 text-orange-800', idle: 'border-gray-300 bg-white text-gray-700' },
+              ] as opt}
+                <label class="flex cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-4 transition-colors
+                  {selectedOutcome === opt.val ? opt.sel : opt.idle}">
+                  <input
+                    type="radio"
+                    name="outcome"
+                    value={opt.val}
+                    bind:group={selectedOutcome}
+                    class="sr-only"
+                  />
+                  <span class="text-xl leading-none">{opt.icon}</span>
+                  <span class="text-base font-medium">{opt.label}</span>
+                </label>
+              {/each}
+            </div>
+          </fieldset>
+
+          {#if selectedOutcome === 'refused'}
+            <div>
+              <label for="refusedReason" class="block text-sm font-medium text-gray-700">
+                Motivo da recusa <span class="text-red-500">*</span>
+              </label>
+              <textarea
+                id="refusedReason"
+                name="refusedReason"
+                rows="2"
+                required
+                placeholder="Descreva o motivo..."
+                class="mt-1.5 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-400 focus:outline-none"
+              ></textarea>
+            </div>
+          {/if}
+
+          {#if selectedOutcome === 'attended'}
+            <div>
+              <p class="text-sm font-medium text-gray-700">Estimativa de duração da próxima consulta</p>
+              <div class="mt-2 grid grid-cols-3 gap-2">
+                {#each [{ val: '30', label: '30 min' }, { val: '60', label: '60 min' }, { val: '', label: 'Não informado' }] as dur}
+                  <label class="flex cursor-pointer items-center justify-center rounded-lg border-2 py-3 text-sm font-medium transition-colors
+                    has-checked:border-gray-900 has-checked:bg-gray-900 has-checked:text-white
+                    border-gray-300 bg-white text-gray-700">
+                    <input type="radio" name="nextDurationEstimate" value={dur.val}
+                      checked={dur.val === ''} class="sr-only" />
+                    {dur.label}
+                  </label>
+                {/each}
+              </div>
+            </div>
+          {/if}
+
+          <div class="border-t border-gray-100 pt-4">
+            <button
+              type="submit"
+              disabled={!selectedOutcome}
+              class="w-full rounded-xl bg-gray-900 py-4 text-base font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
+            >
+              Salvar resultado
+            </button>
+          </div>
+        </form>
+
+      {:else}
+        <p class="px-5 py-6 text-sm text-gray-400">Resultado ainda não registrado.</p>
       {/if}
     </section>
 

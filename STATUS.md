@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Funcionalidades core completas — próxima etapa: limpeza de tabelas legadas e retomada do fluxo normal de migrations  
-**Última atualização:** 2026-04-02 (revisão de sessão — todas as 10 seções concluídas; próxima tarefa identificada)
+**Última atualização:** 2026-04-02 (reordenação das seções em "Registrar resultado" — Custódia e Tentativas antes de Resultado)
 
 ---
 
@@ -137,6 +137,7 @@
 - [x] Notificações por badge por módulo: Fila · Custódia · Qualidade — `src/lib/server/notifications.ts` + sidebar em `+layout.svelte`
 - [x] Filtro de unidades com 3 níveis: "Minha unidade" · "Sob responsabilidade" · "Todas" — toggle em `/fila` via `?scope=`, consulta `unit_responsibilities` no servidor
 - [x] Modal de contato rápido na fila — botão "Tel" em cada linha abre overlay com canal, resultado, hora e notas; salva via `?/add_contact` sem navegar (2026-04-02)
+- [x] Reordenação das seções em "Registrar resultado" — nova ordem: Detalhes → Custódia → Tentativas de Contato → Resultado (2026-04-02)
 
 #### Coordenador (Dashboard)
 - [x] Cálculo de previsibilidade: capacidade semanal vs. ocupação → "X vagas disponíveis" calculado de `third_party_schedules`
