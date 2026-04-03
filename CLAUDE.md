@@ -206,6 +206,7 @@ Tipos válidos: `feat` · `fix` · `chore` · `refactor` · `docs` · `test` · 
 
 > Regras completas na skill `ux-ui-base`.
 
+- **Primary Action primeiro**: definir o que o usuário veio fazer antes de qualquer decisão de layout
 - Cores: OKLCH (sem HSL)
 - Contraste mínimo: WCAG AA (4.5:1)
 - TailwindCSS 4.x via `@theme` no CSS — sem `tailwind.config.js`
