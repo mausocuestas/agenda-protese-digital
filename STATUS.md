@@ -8,7 +8,7 @@
 ## Fase Atual
 
 **Fase:** Funcionalidades core completas — próxima etapa: limpeza de tabelas legadas e retomada do fluxo normal de migrations  
-**Última atualização:** 2026-04-02 (busca de pacientes: accent-insensitive + ordenação por próxima consulta desc)
+**Última atualização:** 2026-04-02 (fix: validação de janela de visita agora usa timeToMinutes — borda inicial inclusiva)
 
 ---
 

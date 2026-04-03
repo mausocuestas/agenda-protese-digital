@@ -9,6 +9,7 @@ import {
   patients,
 } from '$lib/server/db/index'
 import { eq, asc, inArray, isNull, and, count } from 'drizzle-orm'
+import { timeToMinutes } from '$lib/slots'
 
 export const load: PageServerLoad = async ({ locals }) => {
   const user = locals.user
@@ -258,7 +259,8 @@ export const actions: Actions = {
     })
     if (!schedule) return fail(404, { slotError: 'Visita não encontrada' })
 
-    if (scheduledTime < schedule.startTime || scheduledTime > schedule.endTime) {
+    const t = timeToMinutes(scheduledTime)
+    if (t < timeToMinutes(schedule.startTime) || t > timeToMinutes(schedule.endTime)) {
       return fail(422, {
         slotError: `Horário fora da janela da visita (${schedule.startTime.slice(0, 5)}–${schedule.endTime.slice(0, 5)})`,
       })
@@ -334,10 +336,13 @@ export const actions: Actions = {
           eqOp(s.healthUnitId, appt.healthUnitId)
         ),
     })
-    if (schedule && (scheduledTime < schedule.startTime || scheduledTime > schedule.endTime)) {
-      return fail(422, {
-        slotError: `Horário fora da janela da visita (${schedule.startTime.slice(0, 5)}–${schedule.endTime.slice(0, 5)})`,
-      })
+    if (schedule) {
+      const t2 = timeToMinutes(scheduledTime)
+      if (t2 < timeToMinutes(schedule.startTime) || t2 > timeToMinutes(schedule.endTime)) {
+        return fail(422, {
+          slotError: `Horário fora da janela da visita (${schedule.startTime.slice(0, 5)}–${schedule.endTime.slice(0, 5)})`,
+        })
+      }
     }
 
     await db

@@ -3,6 +3,7 @@ import { redirect, error, fail } from '@sveltejs/kit'
 import { db } from '$lib/server/db/client'
 import { eq, isNull, inArray, asc } from 'drizzle-orm'
 import { calcAge, daysSince } from '$lib/utils'
+import { timeToMinutes } from '$lib/slots'
 import { patients, referrals, referralNotes, estabelecimentos, prosthesisTypes, referralProsthesisTypes, appointments, thirdPartySchedules } from '$lib/server/db/index'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -299,7 +300,8 @@ export const actions: Actions = {
     })
     if (!schedule) return fail(422, { apptError: 'Agenda não encontrada' })
 
-    if (scheduledTime < schedule.startTime || scheduledTime > schedule.endTime) {
+    const t = timeToMinutes(scheduledTime)
+    if (t < timeToMinutes(schedule.startTime) || t > timeToMinutes(schedule.endTime)) {
       return fail(422, {
         apptError: `Horário fora da janela do terceirizado (${schedule.startTime.slice(0, 5)}–${schedule.endTime.slice(0, 5)})`,
       })
