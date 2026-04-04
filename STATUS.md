@@ -7,8 +7,8 @@
 
 ## Fase Atual
 
-**Fase:** Funcionalidades core completas — sistema de componentes e padronização visual implementados  
-**Última atualização:** 2026-04-03 (ux: padronização visual completa — sistema de componentes, tokens OKLCH, redesign /agenda, sidebar colapsável)
+**Fase:** Funcionalidades core completas — melhorias no perfil Terceirizado implementadas  
+**Última atualização:** 2026-04-04 (fix/feat: perfil terceirizado — correção de acesso 403, agenda 60 dias, custódia com 3 grupos, OS com lock, finalização de prótese)
 
 ---
 
@@ -160,6 +160,12 @@
 #### Terceirizado (`/minha-agenda`)
 - [x] Botões touch-friendly: `/minha-agenda` usa cards com botão "Abrir consulta" de área ampla; `/consulta/[apptId]` usa botões grandes para outcome (Compareceu/Faltou/Recusado) e seleção de duração
 - [x] Seleção rápida de tempo de previsão — botões pill 30min / 60min / Não informado (sem digitação manual)
+- [x] Bug 403 corrigido — terceirizado isento do filtro de unidade em `/fila/[id]/consulta/[apptId]` (atende múltiplas unidades)
+- [x] Agenda com janela de 60 dias retroativos + separador visual passado/hoje/futuro em `/minha-agenda`
+- [x] Custódia reestruturada em 3 abas: Em Produção / Enviadas-Aguardando UBS / Histórico Recebidas
+- [x] Custódia: campo de OS por encaminhamento — terceirizado insere, coordenador edita; travado para terceirizado após inserção
+- [x] Custódia: trigger corrigido — custódia começa na consulta 1 (escaneamento), não na 2
+- [x] 4ª consulta (Entrega definitiva): CTA especial "Prótese Finalizada e Instalada" com confirmação obrigatória antes de submeter
 - [ ] Offline-first *(futuro — internet atual é ok, mas pode falhar em campo)*
 
 #### Fila (Atendente / Coordenador)

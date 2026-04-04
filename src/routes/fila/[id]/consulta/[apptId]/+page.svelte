@@ -48,6 +48,12 @@
   // Coordenador editando resultado já registrado
   let editingOutcome = $state(false)
   let editOutcomeValue = $state(data.appointment.outcome ?? '')
+  // Confirmação explícita antes de finalizar a 4ª consulta (entrega definitiva)
+  let confirmingFinalization = $state(false)
+
+  // 4ª consulta com paciente comparecendo = entrega definitiva
+  let isDeliveryConsultation = $derived(data.appointment.appointmentNumber === 4)
+  let isFinalizationReady = $derived(isDeliveryConsultation && selectedOutcome === 'attended')
 
   $effect(() => {
     if (form?.success) editingOutcome = false
@@ -564,14 +570,53 @@
             </div>
           {/if}
 
-          <div class="border-t border-gray-100 pt-4">
-            <button
-              type="submit"
-              disabled={!selectedOutcome}
-              class="w-full rounded-xl bg-gray-900 py-4 text-base font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
-            >
-              Salvar resultado
-            </button>
+          <div class="border-t border-gray-100 pt-4 space-y-3">
+            {#if isFinalizationReady && !confirmingFinalization}
+              <!-- 4ª consulta + compareceu: CTA de finalização com confirmação obrigatória -->
+              <button
+                type="button"
+                onclick={() => (confirmingFinalization = true)}
+                class="w-full rounded-xl bg-green-700 py-4 text-base font-semibold text-white hover:bg-green-800"
+              >
+                Prótese Finalizada e Instalada
+              </button>
+              <p class="text-center text-xs text-gray-400">
+                O paciente assinou o recebimento? Confirme antes de prosseguir.
+              </p>
+            {:else if isFinalizationReady && confirmingFinalization}
+              <!-- Confirmação explícita antes de submeter -->
+              <div class="rounded-xl border-2 border-green-500 bg-green-50 p-4">
+                <p class="text-sm font-semibold text-green-800">
+                  Confirmar finalização?
+                </p>
+                <p class="mt-1 text-xs text-green-700">
+                  Após confirmar, o caso vai para a fila de Avaliação do Dentista e sai da agenda do protético.
+                </p>
+                <div class="mt-4 flex gap-3">
+                  <button
+                    type="submit"
+                    class="flex-1 rounded-lg bg-green-700 py-3 text-sm font-semibold text-white hover:bg-green-800"
+                  >
+                    Sim, confirmar
+                  </button>
+                  <button
+                    type="button"
+                    onclick={() => (confirmingFinalization = false)}
+                    class="flex-1 rounded-lg border border-gray-300 bg-white py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            {:else}
+              <button
+                type="submit"
+                disabled={!selectedOutcome}
+                class="w-full rounded-xl bg-gray-900 py-4 text-base font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
+              >
+                Salvar resultado
+              </button>
+            {/if}
           </div>
         </form>
 

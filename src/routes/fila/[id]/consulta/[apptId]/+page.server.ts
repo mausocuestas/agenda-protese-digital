@@ -30,8 +30,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   if (!appt) error(404, 'Consulta não encontrada')
   if (appt.referralId !== referralId) error(400, 'Consulta não pertence a este encaminhamento')
 
-  // Controle de acesso: não-coordenador só acessa encaminhamentos da sua unidade
-  if (user.role !== 'coordinator' && appt.referral.healthUnitId !== user.defaultUnitId) {
+  // Controle de acesso:
+  // - coordenador: acesso total
+  // - terceirizado: acessa qualquer encaminhamento (atende múltiplas unidades sem defaultUnitId fixo)
+  // - demais: apenas encaminhamentos da própria unidade
+  if (
+    user.role !== 'coordinator' &&
+    user.role !== 'third_party' &&
+    appt.referral.healthUnitId !== user.defaultUnitId
+  ) {
     error(403, 'Acesso negado')
   }
 

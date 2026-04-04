@@ -55,7 +55,7 @@
       if (!map.has(s.scheduledDate)) map.set(s.scheduledDate, [])
       map.get(s.scheduledDate)!.push(s)
     }
-    return Array.from(map.entries())
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
   })
 
   // Total de consultas pendentes de resultado (para o subtítulo)
@@ -65,6 +65,13 @@
       0
     )
   )
+
+  // Verifica se uma data é hoje, passada ou futura
+  function getDateClass(dateStr: string): 'past' | 'today' | 'future' {
+    if (dateStr < data.today) return 'past'
+    if (dateStr === data.today) return 'today'
+    return 'future'
+  }
 </script>
 
 <div class="min-h-screen bg-gray-50">
@@ -90,8 +97,9 @@
       {#each groupsByDate() as [date, schedules]}
         <!-- Separador de data -->
         <div>
-          <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-            {formatDate(date)}
+          <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide
+            {getDateClass(date) === 'today' ? 'text-blue-600' : getDateClass(date) === 'past' ? 'text-gray-400' : 'text-gray-500'}">
+            {formatDate(date)}{getDateClass(date) === 'today' ? ' — Hoje' : getDateClass(date) === 'past' ? ' — Histórico' : ''}
           </h2>
 
           <div class="space-y-4">

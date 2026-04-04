@@ -40,7 +40,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const today = new Date().toISOString().slice(0, 10)
 
-  // Visitas a partir de hoje com consultas agendadas para a mesma unidade+data
+  // Janela: 60 dias atrás até o futuro indefinido
+  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  // Visitas dentro da janela com consultas agendadas para a mesma unidade+data
   const rows = await db
     .select({
       scheduleId: thirdPartySchedules.id,
@@ -71,7 +74,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     )
     .leftJoin(referrals, eq(appointments.referralId, referrals.id))
     .leftJoin(patients, eq(referrals.patientId, patients.id))
-    .where(gte(thirdPartySchedules.scheduledDate, today))
+    .where(gte(thirdPartySchedules.scheduledDate, sixtyDaysAgo))
     .orderBy(
       asc(thirdPartySchedules.scheduledDate),
       asc(estabelecimentos.estabelecimento),
@@ -114,5 +117,5 @@ export const load: PageServerLoad = async ({ locals }) => {
     }
   }
 
-  return { scheduleGroups: Array.from(groupMap.values()) }
+  return { scheduleGroups: Array.from(groupMap.values()), today }
 }
