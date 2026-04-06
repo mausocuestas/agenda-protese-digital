@@ -7,12 +7,18 @@
 
 ## Fase Atual
 
-**Fase:** Funcionalidades core completas — edição global de registros pelo coordenador implementada  
-**Última atualização:** 2026-04-06 (feat: edição de registros de qualidade pelo coordenador — conformidade, NF e ligação de satisfação)
+**Fase:** Funcionalidades core completas — bugs de visibilidade e registro do terceirizado corrigidos  
+**Última atualização:** 2026-04-06 (fix: terceirizado — registro de "instalado" e agenda com pacientes)
 
 ---
 
 ## O que está concluído ✅
+
+### Correções terceirizado — Agenda e registro de instalação (2026-04-06)
+- **Bug fix — minha-agenda sem pacientes**: `leftJoin` multi-coluna (`healthUnitId + scheduledDate`) falhava silenciosamente no driver Neon; reescrito para duas queries separadas (igual à `/agenda` do coordenador) — `inArray(scheduledDate, dates)` + indexação por chave `"date__unitId"`
+- **Bug fix — outcome "installed" gravava "attended"**: quando `confirmingFinalization=true`, o radio `name="outcome"` selecionado (`attended`) sobrepunha o `<input hidden value="installed">` no mesmo form; corrigido com `disabled={confirmingFinalization}` no `<fieldset>` — campos desabilitados não são submetidos
+- **Coordenador — edit_outcome**: adicionada opção "Prótese Instalada" (`installed`) no formulário de correção de resultado
+- **Tipo AppointmentRow**: `outcome` agora inclui `'installed'` em `minha-agenda/+page.server.ts`
 
 ### Edição global de registros — Coordenador (2026-04-06)
 - Avaliações de conformidade editáveis após submissão: `edit_conformity` action em `/qualidade`

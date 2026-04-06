@@ -8,14 +8,14 @@ import {
   referrals,
   patients,
 } from '$lib/server/db/index'
-import { eq, gte, asc, and } from 'drizzle-orm'
+import { eq, gte, asc, inArray } from 'drizzle-orm'
 
 type AppointmentRow = {
   id: number
   referralId: number
   appointmentNumber: number
   scheduledTime: string
-  outcome: 'attended' | 'absent' | 'refused' | null
+  outcome: 'attended' | 'absent' | 'refused' | 'installed' | null
   prosthesisReadyAt: Date | null
   prosthesisReceivedAt: Date | null
   patientName: string
@@ -41,10 +41,12 @@ export const load: PageServerLoad = async ({ locals }) => {
   const today = new Date().toISOString().slice(0, 10)
 
   // Janela: 60 dias atrás até o futuro indefinido
-  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10)
 
-  // Visitas dentro da janela com consultas agendadas para a mesma unidade+data
-  const rows = await db
+  // Query 1: visitas do terceirizado dentro da janela (mesma abordagem de /agenda)
+  const rawSchedules = await db
     .select({
       scheduleId: thirdPartySchedules.id,
       scheduledDate: thirdPartySchedules.scheduledDate,
@@ -52,70 +54,67 @@ export const load: PageServerLoad = async ({ locals }) => {
       endTime: thirdPartySchedules.endTime,
       unitId: thirdPartySchedules.healthUnitId,
       unitName: estabelecimentos.estabelecimento,
-      appointmentId: appointments.id,
+    })
+    .from(thirdPartySchedules)
+    .innerJoin(estabelecimentos, eq(thirdPartySchedules.healthUnitId, estabelecimentos.id))
+    .where(gte(thirdPartySchedules.scheduledDate, sixtyDaysAgo))
+    .orderBy(asc(thirdPartySchedules.scheduledDate), asc(estabelecimentos.estabelecimento))
+
+  // Sem visitas → retorna vazio imediatamente
+  if (rawSchedules.length === 0) {
+    return { scheduleGroups: [], today }
+  }
+
+  // Query 2: todos os agendamentos nas datas das visitas — mesma estratégia de /agenda
+  // (inArray por data é mais robusto que leftJoin multi-coluna com tipos date)
+  const dates = [...new Set(rawSchedules.map((s) => s.scheduledDate))]
+
+  const apptRows = await db
+    .select({
+      id: appointments.id,
       referralId: appointments.referralId,
-      appointmentNumber: appointments.appointmentNumber,
-      appointmentDate: appointments.scheduledDate,
+      scheduledDate: appointments.scheduledDate,
+      healthUnitId: appointments.healthUnitId,
       scheduledTime: appointments.scheduledTime,
+      appointmentNumber: appointments.appointmentNumber,
       outcome: appointments.outcome,
       prosthesisReadyAt: appointments.prosthesisReadyAt,
       prosthesisReceivedAt: appointments.prosthesisReceivedAt,
       patientName: patients.fullName,
     })
-    .from(thirdPartySchedules)
-    .innerJoin(estabelecimentos, eq(thirdPartySchedules.healthUnitId, estabelecimentos.id))
-    .leftJoin(
-      appointments,
-      // Vincula apenas consultas desta mesma visita (unidade + data coincidentes)
-      and(
-        eq(appointments.healthUnitId, thirdPartySchedules.healthUnitId),
-        eq(appointments.scheduledDate, thirdPartySchedules.scheduledDate)
-      )
-    )
-    .leftJoin(referrals, eq(appointments.referralId, referrals.id))
-    .leftJoin(patients, eq(referrals.patientId, patients.id))
-    .where(gte(thirdPartySchedules.scheduledDate, sixtyDaysAgo))
-    .orderBy(
-      asc(thirdPartySchedules.scheduledDate),
-      asc(estabelecimentos.estabelecimento),
-      asc(appointments.scheduledTime)
-    )
+    .from(appointments)
+    .innerJoin(referrals, eq(appointments.referralId, referrals.id))
+    .innerJoin(patients, eq(referrals.patientId, patients.id))
+    .where(inArray(appointments.scheduledDate, dates))
+    .orderBy(asc(appointments.scheduledTime))
 
-  // Agrupa linhas por scheduleId — cada visita recebe a lista das suas consultas
-  const groupMap = new Map<number, ScheduleGroup>()
-
-  for (const row of rows) {
-    if (!groupMap.has(row.scheduleId)) {
-      groupMap.set(row.scheduleId, {
-        scheduleId: row.scheduleId,
-        scheduledDate: row.scheduledDate,
-        startTime: row.startTime,
-        endTime: row.endTime,
-        unitId: row.unitId,
-        unitName: row.unitName,
-        appointments: [],
-      })
-    }
-
-    const group = groupMap.get(row.scheduleId)!
-
-    // Ignora linhas sem consulta (visita sem agendamentos ainda)
-    if (row.appointmentId === null || row.patientName === null) continue
-
-    // Evita duplicatas por segurança
-    if (!group.appointments.some((a) => a.id === row.appointmentId)) {
-      group.appointments.push({
-        id: row.appointmentId,
-        referralId: row.referralId!,
-        appointmentNumber: row.appointmentNumber!,
-        scheduledTime: row.scheduledTime!,
-        outcome: row.outcome,
-        prosthesisReadyAt: row.prosthesisReadyAt,
-        prosthesisReceivedAt: row.prosthesisReceivedAt,
-        patientName: row.patientName,
-      })
-    }
+  // Indexa agendamentos por chave data__unidade — igual a /agenda
+  const apptsByKey: Record<string, AppointmentRow[]> = {}
+  for (const row of apptRows) {
+    const key = `${row.scheduledDate}__${row.healthUnitId}`
+    if (!apptsByKey[key]) apptsByKey[key] = []
+    apptsByKey[key].push({
+      id: row.id,
+      referralId: row.referralId,
+      appointmentNumber: row.appointmentNumber,
+      scheduledTime: row.scheduledTime,
+      outcome: row.outcome,
+      prosthesisReadyAt: row.prosthesisReadyAt,
+      prosthesisReceivedAt: row.prosthesisReceivedAt,
+      patientName: row.patientName,
+    })
   }
 
-  return { scheduleGroups: Array.from(groupMap.values()), today }
+  // Constrói os grupos de visita vinculando os agendamentos correspondentes
+  const scheduleGroups: ScheduleGroup[] = rawSchedules.map((s) => ({
+    scheduleId: s.scheduleId,
+    scheduledDate: s.scheduledDate,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    unitId: s.unitId,
+    unitName: s.unitName,
+    appointments: apptsByKey[`${s.scheduledDate}__${s.unitId}`] ?? [],
+  }))
+
+  return { scheduleGroups, today }
 }

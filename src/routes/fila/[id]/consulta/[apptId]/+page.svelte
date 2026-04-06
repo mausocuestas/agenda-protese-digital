@@ -419,7 +419,7 @@
           <fieldset>
             <legend class="text-sm font-medium text-gray-700">Resultado correto</legend>
             <div class="mt-3 space-y-2.5">
-              {#each [['attended', 'Compareceu'], ['absent', 'Faltou (sem avisar)'], ['refused', 'Recusado pelo protético']] as [val, label]}
+              {#each [['attended', 'Compareceu'], ['absent', 'Faltou (sem avisar)'], ['refused', 'Recusado pelo protético'], ['installed', 'Prótese Instalada']] as [val, label]}
                 <label class="flex cursor-pointer items-center gap-3">
                   <input
                     type="radio"
@@ -512,7 +512,9 @@
           use:enhance
           class="space-y-5 px-5 py-4"
         >
-          <fieldset>
+          <!-- disabled evita que os radios sejam enviados quando confirmingFinalization=true,
+               pois o input hidden name="outcome" value="installed" precisa ser o único a submeter -->
+          <fieldset disabled={confirmingFinalization}>
             <legend class="text-sm font-medium text-gray-700">
               O paciente compareceu à consulta? <span class="text-red-500">*</span>
             </legend>

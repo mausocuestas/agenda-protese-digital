@@ -212,3 +212,14 @@
 - Limpar tabelas legadas primeiro — possível no futuro, mas requer confirmação explícita de que não há dados relevantes nelas
 **Trade-off aceito**: Drizzle Kit perde o papel de gerenciador de migrations neste projeto por enquanto; compensado pela segurança total dos dados e pelo acesso direto via MCP.
 **Revisável quando**: As tabelas legadas forem removidas do banco e o `0000_` for marcado como aplicado na tabela `__drizzle_migrations`, permitindo retomar o fluxo normal de `db:generate` + `db:migrate`.
+
+---
+
+## 2026-04-06: Query de agendamentos em minha-agenda — duas queries separadas em vez de leftJoin multi-coluna
+
+**Decisão**: Buscar agendamentos do terceirizado com duas queries separadas: (1) `thirdPartySchedules` filtrado por data; (2) `appointments` filtrado por `inArray(scheduledDate, dates)` com join em `referrals + patients`; depois indexar por `"date__unitId"` e vincular manualmente.
+**Motivo**: O `leftJoin` com condição multi-coluna (`healthUnitId + scheduledDate`) entre tabelas Drizzle no driver Neon falhou silenciosamente — retornava os registros de `thirdPartySchedules` mas com os campos de `appointments` como NULL, resultando em agendamentos nunca exibidos. A `/agenda` do coordenador sempre usou a abordagem de duas queries e funcionava corretamente; o alinhamento eliminou a divergência.
+**Alternativas descartadas**:
+- `leftJoin` multi-coluna — falha silenciosa confirmada em produção Neon; os campos joined retornam NULL mesmo com dados correspondentes
+**Trade-off aceito**: Duas queries ao banco em vez de uma; volume baixo (sistema municipal) torna o overhead irrelevante.
+**Revisável quando**: Confirmação de que o driver/versão do Neon corrigiu o comportamento do leftJoin multi-coluna — improvável ser necessário.
