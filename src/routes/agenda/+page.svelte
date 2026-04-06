@@ -74,13 +74,14 @@
 
   const outcomeLabel: Record<string, string> = {
     attended: 'Compareceu',
+    installed: 'Instalado',
     absent: 'Faltou',
     refused: 'Recusado',
   }
 
   type BadgeVariant = 'success' | 'danger' | 'warning' | 'neutral'
   function outcomeVariant(outcome: string | null | undefined): BadgeVariant {
-    if (outcome === 'attended') return 'success'
+    if (outcome === 'attended' || outcome === 'installed') return 'success'
     if (outcome === 'absent') return 'danger'
     if (outcome === 'refused') return 'warning'
     return 'neutral'
@@ -448,7 +449,7 @@
         {formatDate(schedule.scheduledDate)} · {schedule.unitName} · {slot.startTime}
         · <span class="font-medium">{apptLabel[slot.appointmentNumber ?? 0] ?? `Consulta ${slot.appointmentNumber}`}</span>
         {#if slot.outcome}
-          · <span class="font-medium {slot.outcome === 'attended' ? 'text-success-600' : slot.outcome === 'absent' ? 'text-danger-600' : 'text-warning-600'}">
+          · <span class="font-medium {slot.outcome === 'attended' || slot.outcome === 'installed' ? 'text-success-600' : slot.outcome === 'absent' ? 'text-danger-600' : 'text-warning-600'}">
               {outcomeLabel[slot.outcome] ?? slot.outcome}
             </span>
         {/if}

@@ -28,13 +28,12 @@ export const load: PageServerLoad = async ({ locals }) => {
       ? eq(appointments.healthUnitId, user.defaultUnitId)
       : undefined
 
-  // Seção 1: 4ª consultas realizadas sem avaliação de conformidade
+  // Seção 1: consultas com instalação definitiva registrada sem avaliação de conformidade
   // Busca todas e filtra em JS — dataset pequeno (~dezenas de registros por vez)
   const rawFourth = canAssessConformity
     ? await db.query.appointments.findMany({
         where: and(
-          eq(appointments.appointmentNumber, 4),
-          eq(appointments.outcome, 'attended'),
+          eq(appointments.outcome, 'installed'),
           unitFilter
         ),
         with: {

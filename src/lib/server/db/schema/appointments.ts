@@ -16,9 +16,10 @@ const proteseSchema = pgSchema('protese')
 
 // Resultado registrado pelo terceirizado no dia da consulta
 export const appointmentOutcomeEnum = proteseSchema.enum('appointment_outcome', [
-  'attended', // compareceu
-  'absent',   // faltou sem avisar — volta ao topo da fila
-  'refused',  // recusado pelo terceirizado — motivo obrigatório
+  'attended',  // compareceu — consulta regular (ajuste em andamento)
+  'absent',    // faltou sem avisar — volta ao topo da fila
+  'refused',   // recusado pelo terceirizado — motivo obrigatório
+  'installed', // compareceu E prótese instalada definitivamente
 ])
 
 // Canal de contato usado na tentativa de agendamento

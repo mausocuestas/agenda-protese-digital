@@ -151,8 +151,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   if (canAssessConformity) {
     const fourthAppts = await db.query.appointments.findMany({
       where: and(
-        eq(appointments.appointmentNumber, 4),
-        eq(appointments.outcome, 'attended'),
+        eq(appointments.outcome, 'installed'),
         unitId ? eq(appointments.healthUnitId, unitId) : undefined
       ),
       with: { conformityAssessment: true },
@@ -262,7 +261,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     .groupBy(sql`DATE_TRUNC('month', ${referrals.introductionDate}::date)`)
     .orderBy(sql`DATE_TRUNC('month', ${referrals.introductionDate}::date)`)
 
-  // Entregas realizadas por mês (4ª consulta attended)
+  // Entregas realizadas por mês (outcome = 'installed')
   const deliveriesByMonthRaw = await db
     .select({
       month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${appointments.scheduledDate}::date), 'YYYY-MM')`,
@@ -271,8 +270,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     .from(appointments)
     .where(
       and(
-        eq(appointments.appointmentNumber, 4),
-        eq(appointments.outcome, 'attended'),
+        eq(appointments.outcome, 'installed'),
         gte(appointments.scheduledDate, sixMonthsAgo)
       )
     )

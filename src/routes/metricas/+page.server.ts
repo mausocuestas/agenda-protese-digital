@@ -11,7 +11,7 @@ import {
   conformityAssessments,
   satisfactionCalls,
 } from '$lib/server/db/index'
-import { and, eq, isNotNull, gte, count, desc, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, gte, count, desc, sql, or } from 'drizzle-orm'
 
 // Calcula a data de corte (YYYY-MM-DD) baseada no período selecionado
 function getCutoff(period: string): string | null {
@@ -54,7 +54,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     .innerJoin(estabelecimentos, eq(estabelecimentos.id, appointments.healthUnitId))
     .where(
       and(
-        eq(appointments.outcome, 'attended'),
+        or(eq(appointments.outcome, 'attended'), eq(appointments.outcome, 'installed')),
         cutoff ? gte(appointments.scheduledDate, cutoff) : undefined
       )
     )

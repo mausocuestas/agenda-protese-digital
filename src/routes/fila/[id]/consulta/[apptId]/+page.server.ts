@@ -111,7 +111,7 @@ export const actions: Actions = {
     const nextEstimateRaw = formData.get('nextDurationEstimate') as string
     const nextDurationEstimate = nextEstimateRaw ? parseInt(nextEstimateRaw, 10) : null
 
-    if (!['attended', 'absent', 'refused'].includes(outcome)) {
+    if (!['attended', 'absent', 'refused', 'installed'].includes(outcome)) {
       return fail(422, { message: 'Selecione um resultado válido' })
     }
     if (outcome === 'refused' && !refusedReason) {
@@ -127,9 +127,9 @@ export const actions: Actions = {
     await db
       .update(appointments)
       .set({
-        outcome: outcome as 'attended' | 'absent' | 'refused',
+        outcome: outcome as 'attended' | 'absent' | 'refused' | 'installed',
         refusedReason,
-        ...(outcome === 'attended' ? { attendedAt: new Date() } : {}),
+        ...(outcome === 'attended' || outcome === 'installed' ? { attendedAt: new Date() } : {}),
         ...(nextDurationEstimate && [30, 60].includes(nextDurationEstimate)
           ? { nextDurationEstimate }
           : {}),
@@ -203,7 +203,7 @@ export const actions: Actions = {
     const nextEstimateRaw = formData.get('nextDurationEstimate') as string
     const nextDurationEstimate = nextEstimateRaw ? parseInt(nextEstimateRaw, 10) : null
 
-    if (!['attended', 'absent', 'refused'].includes(outcome)) {
+    if (!['attended', 'absent', 'refused', 'installed'].includes(outcome)) {
       return fail(422, { message: 'Selecione um resultado válido' })
     }
     if (outcome === 'refused' && !refusedReason) {
@@ -213,9 +213,9 @@ export const actions: Actions = {
     await db
       .update(appointments)
       .set({
-        outcome: outcome as 'attended' | 'absent' | 'refused',
+        outcome: outcome as 'attended' | 'absent' | 'refused' | 'installed',
         refusedReason: outcome === 'refused' ? refusedReason : null,
-        attendedAt: outcome === 'attended' ? new Date() : null,
+        attendedAt: outcome === 'attended' || outcome === 'installed' ? new Date() : null,
         nextDurationEstimate:
           nextDurationEstimate && [30, 60].includes(nextDurationEstimate) ? nextDurationEstimate : null,
         updatedAt: new Date(),

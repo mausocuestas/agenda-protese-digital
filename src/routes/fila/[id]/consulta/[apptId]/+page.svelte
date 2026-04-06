@@ -15,12 +15,14 @@
     attended: 'Compareceu',
     absent: 'Faltou',
     refused: 'Recusado',
+    installed: 'Instalado',
   }
 
   const outcomeClass: Record<string, string> = {
     attended: 'bg-green-100 text-green-800',
     absent: 'bg-red-100 text-red-800',
     refused: 'bg-orange-100 text-orange-800',
+    installed: 'bg-teal-100 text-teal-800',
   }
 
   const channelLabel: Record<string, string> = {
@@ -584,7 +586,8 @@
                 O paciente assinou o recebimento? Confirme antes de prosseguir.
               </p>
             {:else if isFinalizationReady && confirmingFinalization}
-              <!-- Confirmação explícita antes de submeter -->
+              <!-- Confirmação explícita antes de submeter — outcome forçado para 'installed' -->
+              <input type="hidden" name="outcome" value="installed" />
               <div class="rounded-xl border-2 border-green-500 bg-green-50 p-4">
                 <p class="text-sm font-semibold text-green-800">
                   Confirmar finalização?

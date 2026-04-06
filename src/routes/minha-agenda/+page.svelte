@@ -32,6 +32,7 @@
   // Cor e texto do badge de resultado
   const outcomeConfig = {
     attended: { label: 'Compareceu', cls: 'bg-green-100 text-green-800' },
+    installed: { label: 'Instalado', cls: 'bg-teal-100 text-teal-800' },
     absent: { label: 'Faltou', cls: 'bg-red-100 text-red-800' },
     refused: { label: 'Recusado', cls: 'bg-orange-100 text-orange-800' },
   }
