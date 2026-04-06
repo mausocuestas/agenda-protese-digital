@@ -51,8 +51,8 @@
   // Confirmação explícita antes de finalizar a 4ª consulta (entrega definitiva)
   let confirmingFinalization = $state(false)
 
-  // 4ª consulta com paciente comparecendo = entrega definitiva
-  let isDeliveryConsultation = $derived(data.appointment.appointmentNumber === 4)
+  // A partir da 2ª consulta o terceirizado pode registrar entrega definitiva
+  let isDeliveryConsultation = $derived(data.appointment.appointmentNumber >= 2)
   let isFinalizationReady = $derived(isDeliveryConsultation && selectedOutcome === 'attended')
 
   $effect(() => {
