@@ -19,6 +19,8 @@ export const load: PageServerLoad = async ({ locals }) => {
   const canApprove = user.role === 'coordinator'
   // Atendente e coordenador fazem a ligação de satisfação
   const canCallSatisfaction = user.role === 'attendant' || user.role === 'coordinator'
+  // Apenas coordenador pode editar registros já concluídos
+  const canEdit = user.role === 'coordinator'
 
   // Filtro de unidade para dentista/atendente — coordenador vê tudo
   const unitFilter =
@@ -87,6 +89,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const awaitingSatisfaction = rawApprovals.filter((cap) => !cap.referral.satisfactionCall)
 
+  // Histórico para edição pelo coordenador: ligações de satisfação já registradas
+  const completedSatisfactionCallsRaw = canEdit
+    ? await db.query.satisfactionCalls.findMany({
+        with: {
+          referral: {
+            with: {
+              patient: true,
+              healthUnit: true,
+            },
+          },
+        },
+        orderBy: (sc, { desc }) => [desc(sc.calledAt)],
+      })
+    : []
+
   // Seção 4: ligações com pendência de consulta na unidade não resolvida
   const pendingUnitAppointments = canCallSatisfaction
     ? await db.query.satisfactionCalls.findMany({
@@ -110,6 +127,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     canAssessConformity,
     canApprove,
     canCallSatisfaction,
+    canEdit,
     awaitingConformity: awaitingConformity.map((a) => ({
       appointmentId: a.id,
       referralId: a.referralId,
@@ -146,6 +164,47 @@ export const load: PageServerLoad = async ({ locals }) => {
       patientPhone: sc.referral.patient.phone,
       unitName: sc.referral.healthUnit.estabelecimento,
     })),
+    // Histórico editável — visível apenas para o coordenador
+    completedAssessments: canEdit
+      ? rawAssessments.map((ca) => ({
+          assessmentId: ca.id,
+          referralId: ca.referralId,
+          appointmentId: ca.appointmentId,
+          adaptationOk: ca.adaptationOk,
+          adaptationNotes: ca.adaptationNotes ?? null,
+          occlusionOk: ca.occlusionOk,
+          occlusionNotes: ca.occlusionNotes ?? null,
+          materialOk: ca.materialOk,
+          materialNotes: ca.materialNotes ?? null,
+          finalVerdict: ca.finalVerdict as 'approved' | 'refused',
+          refusalReason: ca.refusalReason ?? null,
+          assessedAt: ca.assessedAt.toISOString(),
+          patientName: ca.referral.patient.fullName,
+          unitName: ca.referral.healthUnit.estabelecimento,
+        }))
+      : [],
+    completedApprovals: canEdit
+      ? rawApprovals.map((cap) => ({
+          approvalId: cap.id,
+          referralId: cap.referralId,
+          invoiceNumber: cap.invoiceNumber,
+          approvedAt: cap.approvedAt.toISOString(),
+          patientName: cap.referral.patient.fullName,
+          unitName: cap.referral.healthUnit.estabelecimento,
+        }))
+      : [],
+    completedSatisfactionCalls: canEdit
+      ? completedSatisfactionCallsRaw.map((sc) => ({
+          satisfactionCallId: sc.id,
+          referralId: sc.referralId,
+          result: sc.result as 'great' | 'reasonable' | 'difficulties',
+          needsUnitAppointment: sc.needsUnitAppointment,
+          notes: sc.notes ?? null,
+          calledAt: sc.calledAt.toISOString(),
+          patientName: sc.referral.patient.fullName,
+          unitName: sc.referral.healthUnit.estabelecimento,
+        }))
+      : [],
   }
 }
 
@@ -301,6 +360,117 @@ export const actions: Actions = {
       .update(conformityAssessments)
       .set({ isVisibleToThirdParty: !existing.isVisibleToThirdParty })
       .where(eq(conformityAssessments.id, conformityId))
+
+    return { success: true }
+  },
+
+  // Coordenador corrige avaliação de conformidade já registrada
+  edit_conformity: async ({ request, locals }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+    if (user.role !== 'coordinator') return fail(403, { message: 'Sem permissão' })
+
+    const fd = await request.formData()
+    const assessmentId = parseInt(fd.get('assessmentId') as string, 10)
+    const adaptationOk = fd.get('adaptationOk') === 'true'
+    const adaptationNotes = (fd.get('adaptationNotes') as string)?.trim() || null
+    const occlusionOk = fd.get('occlusionOk') === 'true'
+    const occlusionNotes = (fd.get('occlusionNotes') as string)?.trim() || null
+    const materialOk = fd.get('materialOk') === 'true'
+    const materialNotes = (fd.get('materialNotes') as string)?.trim() || null
+    const finalVerdict = fd.get('finalVerdict') as 'approved' | 'refused'
+    const refusalReason = (fd.get('refusalReason') as string)?.trim() || null
+
+    if (isNaN(assessmentId)) return fail(400, { message: 'ID inválido' })
+    if (!['approved', 'refused'].includes(finalVerdict)) return fail(400, { message: 'Parecer inválido' })
+    if (finalVerdict === 'refused' && !refusalReason) {
+      return fail(400, { message: 'Motivo da recusa obrigatório' })
+    }
+    if (!adaptationOk && !adaptationNotes) {
+      return fail(400, { message: 'Observação obrigatória quando adaptação não está conforme' })
+    }
+    if (!occlusionOk && !occlusionNotes) {
+      return fail(400, { message: 'Observação obrigatória quando oclusão não está conforme' })
+    }
+    if (!materialOk && !materialNotes) {
+      return fail(400, { message: 'Observação obrigatória quando material não está conforme' })
+    }
+
+    const existing = await db.query.conformityAssessments.findFirst({
+      where: eq(conformityAssessments.id, assessmentId),
+    })
+    if (!existing) return fail(404, { message: 'Avaliação não encontrada' })
+
+    await db
+      .update(conformityAssessments)
+      .set({
+        adaptationOk,
+        adaptationNotes,
+        occlusionOk,
+        occlusionNotes,
+        materialOk,
+        materialNotes,
+        finalVerdict,
+        refusalReason,
+      })
+      .where(eq(conformityAssessments.id, assessmentId))
+
+    return { success: true }
+  },
+
+  // Coordenador corrige número da NF já registrada
+  edit_approval: async ({ request, locals }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+    if (user.role !== 'coordinator') return fail(403, { message: 'Sem permissão' })
+
+    const fd = await request.formData()
+    const approvalId = parseInt(fd.get('approvalId') as string, 10)
+    const invoiceNumber = (fd.get('invoiceNumber') as string)?.trim()
+
+    if (isNaN(approvalId)) return fail(400, { message: 'ID inválido' })
+    if (!invoiceNumber) return fail(400, { message: 'Número da NF obrigatório' })
+    if (invoiceNumber.length > 50) return fail(400, { message: 'NF muito longa (máx. 50 caracteres)' })
+
+    const existing = await db.query.coordinationApprovals.findFirst({
+      where: eq(coordinationApprovals.id, approvalId),
+    })
+    if (!existing) return fail(404, { message: 'Aprovação não encontrada' })
+
+    await db
+      .update(coordinationApprovals)
+      .set({ invoiceNumber })
+      .where(eq(coordinationApprovals.id, approvalId))
+
+    return { success: true }
+  },
+
+  // Coordenador corrige ligação de satisfação já registrada
+  edit_satisfaction: async ({ request, locals }) => {
+    const user = locals.user
+    if (!user) redirect(302, '/login')
+    if (user.role !== 'coordinator') return fail(403, { message: 'Sem permissão' })
+
+    const fd = await request.formData()
+    const satisfactionCallId = parseInt(fd.get('satisfactionCallId') as string, 10)
+    const result = fd.get('result') as 'great' | 'reasonable' | 'difficulties'
+    const needsUnitAppointment = fd.get('needsUnitAppointment') === 'true'
+    const notes = (fd.get('notes') as string)?.trim() || null
+
+    if (isNaN(satisfactionCallId)) return fail(400, { message: 'ID inválido' })
+    if (!['great', 'reasonable', 'difficulties'].includes(result)) {
+      return fail(400, { message: 'Resultado inválido' })
+    }
+
+    const existing = await db.query.satisfactionCalls.findFirst({
+      where: eq(satisfactionCalls.id, satisfactionCallId),
+    })
+    if (!existing) return fail(404, { message: 'Registro não encontrado' })
+
+    await db
+      .update(satisfactionCalls)
+      .set({ result, needsUnitAppointment, notes })
+      .where(eq(satisfactionCalls.id, satisfactionCallId))
 
     return { success: true }
   },

@@ -22,6 +22,61 @@
     finalVerdict = 'approved'
   }
 
+  // ─── Estado para edição de registros já concluídos (coordenador) ───
+  let showCompletedAssessments = $state(false)
+  let showCompletedApprovals = $state(false)
+  let showCompletedSatisfaction = $state(false)
+
+  let expandedEditConformity = $state<number | null>(null)
+  let expandedEditApproval = $state<number | null>(null)
+  let expandedEditSatisfaction = $state<number | null>(null)
+
+  // Campos do formulário de edição de conformidade
+  let editAdaptationOk = $state(true)
+  let editAdaptationNotes = $state('')
+  let editOcclusionOk = $state(true)
+  let editOcclusionNotes = $state('')
+  let editMaterialOk = $state(true)
+  let editMaterialNotes = $state('')
+  let editFinalVerdict = $state<'approved' | 'refused'>('approved')
+  let editRefusalReason = $state('')
+
+  // Campos do formulário de edição de aprovação
+  let editInvoiceNumber = $state('')
+
+  // Campos do formulário de edição de satisfação
+  let editSatisfactionResult = $state<'great' | 'reasonable' | 'difficulties'>('great')
+  let editSatisfactionNeedsUnit = $state(false)
+  let editSatisfactionNotes = $state('')
+
+  type CompletedAssessment = (typeof data.completedAssessments)[0]
+  type CompletedApproval = (typeof data.completedApprovals)[0]
+  type CompletedSatisfactionCall = (typeof data.completedSatisfactionCalls)[0]
+
+  function openEditConformity(item: CompletedAssessment) {
+    expandedEditConformity = item.assessmentId
+    editAdaptationOk = item.adaptationOk
+    editAdaptationNotes = item.adaptationNotes ?? ''
+    editOcclusionOk = item.occlusionOk
+    editOcclusionNotes = item.occlusionNotes ?? ''
+    editMaterialOk = item.materialOk
+    editMaterialNotes = item.materialNotes ?? ''
+    editFinalVerdict = item.finalVerdict
+    editRefusalReason = item.refusalReason ?? ''
+  }
+
+  function openEditApproval(item: CompletedApproval) {
+    expandedEditApproval = item.approvalId
+    editInvoiceNumber = item.invoiceNumber
+  }
+
+  function openEditSatisfaction(item: CompletedSatisfactionCall) {
+    expandedEditSatisfaction = item.satisfactionCallId
+    editSatisfactionResult = item.result
+    editSatisfactionNeedsUnit = item.needsUnitAppointment
+    editSatisfactionNotes = item.notes ?? ''
+  }
+
   function fmtDate(iso: string): string {
     const [y, m, d] = iso.substring(0, 10).split('-')
     return `${d}/${m}/${y}`
@@ -300,6 +355,176 @@
             {/each}
           </ul>
         {/if}
+
+        <!-- Já avaliados — editável pelo coordenador -->
+        {#if data.canEdit && data.completedAssessments.length > 0}
+          <div class="mt-4">
+            <button
+              type="button"
+              onclick={() => (showCompletedAssessments = !showCompletedAssessments)}
+              class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+            >
+              <span>{showCompletedAssessments ? '▾' : '▸'}</span>
+              {data.completedAssessments.length} avaliação{data.completedAssessments.length !== 1 ? 'ões' : ''} já registrada{data.completedAssessments.length !== 1 ? 's' : ''} — clique para editar
+            </button>
+
+            {#if showCompletedAssessments}
+              <ul class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
+                {#each data.completedAssessments as item (item.assessmentId)}
+                  <li class="px-5 py-4">
+                    <div class="flex items-start justify-between gap-4">
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                          <a href="/fila/{item.referralId}" class="font-medium text-gray-900 hover:underline">
+                            {item.patientName}
+                          </a>
+                          <span class="rounded px-2 py-0.5 text-xs font-medium {verdictColor[item.finalVerdict]}">
+                            {verdictLabel[item.finalVerdict]}
+                          </span>
+                        </div>
+                        <p class="mt-0.5 text-sm text-gray-500">
+                          {item.unitName} · avaliada em {fmtDateTime(item.assessedAt)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onclick={() =>
+                          expandedEditConformity === item.assessmentId
+                            ? (expandedEditConformity = null)
+                            : openEditConformity(item)}
+                        class="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        {expandedEditConformity === item.assessmentId ? 'Cancelar' : 'Editar'}
+                      </button>
+                    </div>
+
+                    {#if expandedEditConformity === item.assessmentId}
+                      <form
+                        method="POST"
+                        action="?/edit_conformity"
+                        use:enhance
+                        class="mt-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4"
+                      >
+                        <input type="hidden" name="assessmentId" value={item.assessmentId} />
+
+                        <!-- Adaptação -->
+                        <fieldset class="space-y-1">
+                          <legend class="text-sm font-medium text-gray-800">Adaptação</legend>
+                          <div class="flex gap-4">
+                            <label class="flex items-center gap-2 text-sm">
+                              <input type="radio" name="adaptationOk" value="true"
+                                checked={editAdaptationOk}
+                                onchange={() => (editAdaptationOk = true)} />
+                              Conforme
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                              <input type="radio" name="adaptationOk" value="false"
+                                checked={!editAdaptationOk}
+                                onchange={() => (editAdaptationOk = false)} />
+                              Não conforme
+                            </label>
+                          </div>
+                          {#if !editAdaptationOk}
+                            <textarea name="adaptationNotes" rows="2"
+                              bind:value={editAdaptationNotes}
+                              placeholder="Descreva o problema de adaptação..." required
+                              class="mt-1 w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-400 focus:outline-none"
+                            ></textarea>
+                          {/if}
+                        </fieldset>
+
+                        <!-- Oclusão -->
+                        <fieldset class="space-y-1">
+                          <legend class="text-sm font-medium text-gray-800">Oclusão</legend>
+                          <div class="flex gap-4">
+                            <label class="flex items-center gap-2 text-sm">
+                              <input type="radio" name="occlusionOk" value="true"
+                                checked={editOcclusionOk}
+                                onchange={() => (editOcclusionOk = true)} />
+                              Conforme
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                              <input type="radio" name="occlusionOk" value="false"
+                                checked={!editOcclusionOk}
+                                onchange={() => (editOcclusionOk = false)} />
+                              Não conforme
+                            </label>
+                          </div>
+                          {#if !editOcclusionOk}
+                            <textarea name="occlusionNotes" rows="2"
+                              bind:value={editOcclusionNotes}
+                              placeholder="Descreva o problema de oclusão..." required
+                              class="mt-1 w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-400 focus:outline-none"
+                            ></textarea>
+                          {/if}
+                        </fieldset>
+
+                        <!-- Material -->
+                        <fieldset class="space-y-1">
+                          <legend class="text-sm font-medium text-gray-800">Material</legend>
+                          <div class="flex gap-4">
+                            <label class="flex items-center gap-2 text-sm">
+                              <input type="radio" name="materialOk" value="true"
+                                checked={editMaterialOk}
+                                onchange={() => (editMaterialOk = true)} />
+                              Conforme
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                              <input type="radio" name="materialOk" value="false"
+                                checked={!editMaterialOk}
+                                onchange={() => (editMaterialOk = false)} />
+                              Não conforme
+                            </label>
+                          </div>
+                          {#if !editMaterialOk}
+                            <textarea name="materialNotes" rows="2"
+                              bind:value={editMaterialNotes}
+                              placeholder="Descreva o problema de material..." required
+                              class="mt-1 w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-400 focus:outline-none"
+                            ></textarea>
+                          {/if}
+                        </fieldset>
+
+                        <!-- Parecer final -->
+                        <fieldset class="space-y-1">
+                          <legend class="text-sm font-medium text-gray-800">Parecer final</legend>
+                          <div class="flex gap-4">
+                            <label class="flex items-center gap-2 text-sm">
+                              <input type="radio" name="finalVerdict" value="approved"
+                                checked={editFinalVerdict === 'approved'}
+                                onchange={() => (editFinalVerdict = 'approved')} />
+                              Aprovada
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                              <input type="radio" name="finalVerdict" value="refused"
+                                checked={editFinalVerdict === 'refused'}
+                                onchange={() => (editFinalVerdict = 'refused')} />
+                              Recusada (retorna para ajuste)
+                            </label>
+                          </div>
+                          {#if editFinalVerdict === 'refused'}
+                            <textarea name="refusalReason" rows="2"
+                              bind:value={editRefusalReason}
+                              placeholder="Motivo da recusa (obrigatório)..." required
+                              class="mt-1 w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-red-400 focus:outline-none"
+                            ></textarea>
+                          {/if}
+                        </fieldset>
+
+                        <div class="flex justify-end">
+                          <button type="submit"
+                            class="rounded-md bg-gray-700 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">
+                            Salvar alterações
+                          </button>
+                        </div>
+                      </form>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
+        {/if}
       </section>
     {/if}
 
@@ -390,6 +615,72 @@
               </li>
             {/each}
           </ul>
+        {/if}
+
+        <!-- Aprovações já registradas — editável pelo coordenador -->
+        {#if data.canEdit && data.completedApprovals.length > 0}
+          <div class="mt-4">
+            <button
+              type="button"
+              onclick={() => (showCompletedApprovals = !showCompletedApprovals)}
+              class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+            >
+              <span>{showCompletedApprovals ? '▾' : '▸'}</span>
+              {data.completedApprovals.length} aprovação{data.completedApprovals.length !== 1 ? 'ões' : ''} já registrada{data.completedApprovals.length !== 1 ? 's' : ''} — clique para editar NF
+            </button>
+
+            {#if showCompletedApprovals}
+              <ul class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
+                {#each data.completedApprovals as item (item.approvalId)}
+                  <li class="px-5 py-4">
+                    <div class="flex items-center justify-between gap-4">
+                      <div class="min-w-0">
+                        <a href="/fila/{item.referralId}" class="font-medium text-gray-900 hover:underline">
+                          {item.patientName}
+                        </a>
+                        <p class="mt-0.5 text-sm text-gray-500">
+                          {item.unitName} · NF: <span class="font-mono">{item.invoiceNumber}</span> · aprovada em {fmtDateTime(item.approvedAt)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onclick={() =>
+                          expandedEditApproval === item.approvalId
+                            ? (expandedEditApproval = null)
+                            : openEditApproval(item)}
+                        class="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        {expandedEditApproval === item.approvalId ? 'Cancelar' : 'Editar NF'}
+                      </button>
+                    </div>
+
+                    {#if expandedEditApproval === item.approvalId}
+                      <form
+                        method="POST"
+                        action="?/edit_approval"
+                        use:enhance
+                        class="mt-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3"
+                      >
+                        <input type="hidden" name="approvalId" value={item.approvalId} />
+                        <input
+                          type="text"
+                          name="invoiceNumber"
+                          bind:value={editInvoiceNumber}
+                          required
+                          maxlength="50"
+                          class="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm font-mono focus:border-purple-400 focus:outline-none"
+                        />
+                        <button type="submit"
+                          class="rounded-md bg-gray-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800">
+                          Salvar
+                        </button>
+                      </form>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
         {/if}
       </section>
     {/if}
@@ -504,6 +795,110 @@
               </li>
             {/each}
           </ul>
+        {/if}
+
+        <!-- Ligações já registradas — editável pelo coordenador -->
+        {#if data.canEdit && data.completedSatisfactionCalls.length > 0}
+          <div class="mt-4">
+            <button
+              type="button"
+              onclick={() => (showCompletedSatisfaction = !showCompletedSatisfaction)}
+              class="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+            >
+              <span>{showCompletedSatisfaction ? '▾' : '▸'}</span>
+              {data.completedSatisfactionCalls.length} ligação{data.completedSatisfactionCalls.length !== 1 ? 'ões' : ''} já registrada{data.completedSatisfactionCalls.length !== 1 ? 's' : ''} — clique para editar
+            </button>
+
+            {#if showCompletedSatisfaction}
+              <ul class="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
+                {#each data.completedSatisfactionCalls as item (item.satisfactionCallId)}
+                  <li class="px-5 py-4">
+                    <div class="flex items-start justify-between gap-4">
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                          <a href="/fila/{item.referralId}" class="font-medium text-gray-900 hover:underline">
+                            {item.patientName}
+                          </a>
+                          <span class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                            {resultLabel[item.result]}
+                          </span>
+                        </div>
+                        <p class="mt-0.5 text-sm text-gray-500">
+                          {item.unitName} · {fmtDateTime(item.calledAt)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onclick={() =>
+                          expandedEditSatisfaction === item.satisfactionCallId
+                            ? (expandedEditSatisfaction = null)
+                            : openEditSatisfaction(item)}
+                        class="shrink-0 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        {expandedEditSatisfaction === item.satisfactionCallId ? 'Cancelar' : 'Editar'}
+                      </button>
+                    </div>
+
+                    {#if expandedEditSatisfaction === item.satisfactionCallId}
+                      <form
+                        method="POST"
+                        action="?/edit_satisfaction"
+                        use:enhance
+                        class="mt-4 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4"
+                      >
+                        <input type="hidden" name="satisfactionCallId" value={item.satisfactionCallId} />
+
+                        <fieldset class="space-y-2">
+                          <legend class="text-sm font-medium text-gray-800">Como o paciente está?</legend>
+                          <label class="flex items-center gap-2 text-sm">
+                            <input type="radio" name="result" value="great"
+                              checked={editSatisfactionResult === 'great'}
+                              onchange={() => (editSatisfactionResult = 'great')} required />
+                            Ótimo — se adaptou bem
+                          </label>
+                          <label class="flex items-center gap-2 text-sm">
+                            <input type="radio" name="result" value="reasonable"
+                              checked={editSatisfactionResult === 'reasonable'}
+                              onchange={() => (editSatisfactionResult = 'reasonable')} />
+                            Razoável — ainda se acostumando
+                          </label>
+                          <label class="flex items-center gap-2 text-sm">
+                            <input type="radio" name="result" value="difficulties"
+                              checked={editSatisfactionResult === 'difficulties'}
+                              onchange={() => (editSatisfactionResult = 'difficulties')} />
+                            Com dificuldades — precisa de retorno à unidade
+                          </label>
+                        </fieldset>
+
+                        <label class="flex items-center gap-2 text-sm">
+                          <input type="checkbox" name="needsUnitAppointment" value="true"
+                            checked={editSatisfactionNeedsUnit}
+                            onchange={(e) => (editSatisfactionNeedsUnit = (e.currentTarget as HTMLInputElement).checked)} />
+                          Marcar pendência de consulta na unidade
+                        </label>
+
+                        <div>
+                          <label class="block text-sm font-medium text-gray-800">Observações (opcional)</label>
+                          <textarea name="notes" rows="2"
+                            bind:value={editSatisfactionNotes}
+                            placeholder="Informações relevantes da ligação..."
+                            class="mt-1 w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-teal-400 focus:outline-none"
+                          ></textarea>
+                        </div>
+
+                        <div class="flex justify-end">
+                          <button type="submit"
+                            class="rounded-md bg-gray-700 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">
+                            Salvar alterações
+                          </button>
+                        </div>
+                      </form>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
         {/if}
       </section>
     {/if}

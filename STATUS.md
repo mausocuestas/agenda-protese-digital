@@ -7,12 +7,20 @@
 
 ## Fase Atual
 
-**Fase:** Funcionalidades core completas — melhorias no perfil Terceirizado implementadas  
-**Última atualização:** 2026-04-04 (fix/feat: perfil terceirizado — correção de acesso 403, agenda 60 dias, custódia com 3 grupos, OS com lock, finalização de prótese)
+**Fase:** Funcionalidades core completas — edição global de registros pelo coordenador implementada  
+**Última atualização:** 2026-04-06 (feat: edição de registros de qualidade pelo coordenador — conformidade, NF e ligação de satisfação)
 
 ---
 
 ## O que está concluído ✅
+
+### Edição global de registros — Coordenador (2026-04-06)
+- Avaliações de conformidade editáveis após submissão: `edit_conformity` action em `/qualidade`
+- Número da NF editável após aprovação: `edit_approval` action em `/qualidade`
+- Ligações de satisfação editáveis após registro: `edit_satisfaction` action em `/qualidade`
+- Subgrupos "Já registrados" colapsáveis em cada seção — visíveis apenas para coordenador
+- Formulários inline pré-preenchidos com os dados atuais do banco
+- Controle duplo: botão oculto para outros perfis no HTML + 403 no servidor se forçado via API
 
 ### UX/UI — Padronização visual (2026-04-03)
 - Tokens OKLCH completos em `src/app.css`: neutros (`--color-neutral-*`), semânticas (`success/danger/warning`), sombras
