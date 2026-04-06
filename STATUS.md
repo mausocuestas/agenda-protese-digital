@@ -173,7 +173,7 @@
 - [x] Custódia reestruturada em 3 abas: Em Produção / Enviadas-Aguardando UBS / Histórico Recebidas
 - [x] Custódia: campo de OS por encaminhamento — terceirizado insere, coordenador edita; travado para terceirizado após inserção
 - [x] Custódia: trigger corrigido — custódia começa na consulta 1 (escaneamento), não na 2
-- [x] A partir da 2ª consulta: CTA especial "Prótese Finalizada e Instalada" com confirmação obrigatória antes de submeter
+- [x] A partir da 2ª consulta: CTA especial "Prótese Finalizada e Instalada" com confirmação obrigatória — grava outcome `installed` (enum distinto de `attended`); queries de entrega, conformidade e métricas atualizadas
 - [ ] Offline-first *(futuro — internet atual é ok, mas pode falhar em campo)*
 
 #### Fila (Atendente / Coordenador)
